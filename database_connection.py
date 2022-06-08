@@ -44,7 +44,7 @@ def insert(table_data):
             querry = querry[:-1]+");"
         # break
     print(f'Sql query building finished in : {time.time()-start_time}')
-    with open("TalentiQImportQuery.sql", "w") as text_file:
+    with open("revisalImportQuery.sql", "w") as text_file:
         print(f"{querry}", file=text_file)
     try:
         with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:

@@ -78,7 +78,7 @@ def upload_file():
         querry_report=database_connection.insert(processed_database['tabele'])
         
         raport+=processed_database['raport']
-        if FILE_REQUESTED=='YES': return send_file('Preview_Output.sql')
+        if FILE_REQUESTED=='YES': return send_file('revisalImportQuery.sql')
         return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport})
     return '''
     <!doctype html>
@@ -94,13 +94,12 @@ def upload_file():
       <input type=text name="cnp2" value=''><br>
       <label for="companyCui">CUI COMPANIE LA CARE USER ARE ACCES:   </label><br>
       <input type=text name="companyCui" value='27878713'><br>
-      <label for="reportDate">Data pentru care se face raportul :</label><br>
+      <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
       <input type=text name="reportDate" value='2022-01-01'><br>
       <label for="minCor">Numar minim de CORuri pentru care se face uploadarea NOT YET IMPLEMENTED   </label><br>
       <input type=text name="minCor" value='1' ><br><br>
       <label for="fileRequested">Reply as file</label><br>
       <input type=text name="fileRequested" value='YES'><br><br>
-      
       <input type=submit value=Upload>
     </form>
     '''
