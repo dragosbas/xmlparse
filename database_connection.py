@@ -22,7 +22,6 @@ connection_string = 'DRIVER='+driver+';SERVER=tcp:'+server + \
     # conn.close()
 
 def execute_query(query):
-    # with pyodbc.connect(connection_string) as conn:
     with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
         with conn.cursor() as cursor:
             cursor.execute(query)
@@ -34,9 +33,10 @@ def insert(table_data):
     start_time=time.time()
     querry = ""
     for table_name, table_data in table_data.items():
+        table_name="upload_"+table_name
         querry += f"\nDROP TABLE IF EXISTS {table_name} ;\nCREATE TABLE {table_name} ("
         for column_name, column_type in table_data[0].items():
-            querry += f"{column_name} VARCHAR(50),"
+            querry += f"{column_name} VARCHAR(250),"
         querry = querry[:-1]+");"
         for row in table_data:
             querry += f"\nINSERT INTO {table_name} VALUES ("
@@ -48,13 +48,9 @@ def insert(table_data):
     with open("Preview_Output.sql", "w") as text_file:
         print(f"{querry}", file=text_file)
     
-
-    # with pyodbc.connect(connection_string) as conn:
     with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
         with conn.cursor() as cursor:
             print(f'Sql query execution starting in : {time.time()-start_time}')
             cursor.execute(querry)
             print(f'Sql query execution finished in : {time.time()-start_time}')
-            # result=cursor.fetchall()
-            # row = cursor.fetchall()
-    # print(row)
+    

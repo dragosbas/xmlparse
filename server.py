@@ -23,7 +23,7 @@ app.config["UPLOAD_FOLDER"] = os.path.join(
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    if request.method == 'POST':        
+    if request.method == 'POST':
         start_time = time.time()
         upload_folder = app.config['UPLOAD_FOLDER']
         try:
