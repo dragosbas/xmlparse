@@ -33,7 +33,7 @@ def insert(table_data):
     start_time=time.time()
     querry = ""
     for table_name, table_data in table_data.items():
-        table_name="upload_"+table_name
+        if table_name!="salariati": continue
         querry += f"\nDROP TABLE IF EXISTS {table_name} ;\nCREATE TABLE {table_name} ("
         for column_name, column_type in table_data[0].items():
             querry += f"{column_name} VARCHAR(250),"
@@ -43,7 +43,7 @@ def insert(table_data):
             for column_name, column_value in row.items():
                 querry += f"'{column_value}',"
             querry = querry[:-1]+");"
-        # break
+        break
     print(f'Sql query building finished in : {time.time()-start_time}')
     with open("Preview_Output.sql", "w") as text_file:
         print(f"{querry}", file=text_file)
