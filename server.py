@@ -1,3 +1,4 @@
+from re import S
 from flask import (Flask, request,jsonify)
 import os,zipfile,time,xmltodict
 import database_connection
@@ -12,6 +13,11 @@ import database_connection
 
 app = Flask(__name__)
 app.secret_key = 'sogard'
+try:
+    os.mkdir(os.path.join(os.path.dirname(__file__),"uploads"))
+except:
+    pass
+
 app.config["UPLOAD_FOLDER"] = os.path.join(
     os.path.dirname(__file__), "uploads")
 
