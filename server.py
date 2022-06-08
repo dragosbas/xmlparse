@@ -1,6 +1,7 @@
 from flask import (Flask, request,jsonify)
 import os,zipfile,time,xmltodict
 import database_connection
+from flask_cors import CORS
 
 #test Azure Database
 # try:
@@ -31,7 +32,7 @@ def upload_file():
             # param = request.form
             for filename in os.listdir(upload_folder):
                 os.remove(os.path.join(upload_folder, filename))
-            file = request.files['file']
+            file=request.form.get('file',request.files['file'])
             #Unzip File 1
             with zipfile.ZipFile((file), mode='r') as my_zip:
                 my_zip.extractall(upload_folder)
@@ -248,7 +249,7 @@ def process(xmlData):
     return {'contracte':final_export_contracte,'salariati':final_export_salariati,'localitati':final_export_localitate,'cor':final_export_cor,'timp_munca':final_export_timp_munca,'stare_curenta':final_export_stare_curenta,'detalii_salariati_straini':final_export_detalii_salariati_straini}
  
 if __name__ == "__main__":
-    app.run(debug=True)
+    CORS(app.run(debug=True))
     print("Starting server...")
 
 
