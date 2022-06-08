@@ -1,5 +1,6 @@
-import pyodbc,time
-
+# import pyodbc
+import time
+import pymssql
 server = 'aibest.database.windows.net'
 database = 'aibest'
 username = 'robert'
@@ -8,9 +9,21 @@ driver = '{ODBC Driver 17 for SQL Server}'
 connection_string = 'DRIVER='+driver+';SERVER=tcp:'+server + \
     ';PORT=1433;DATABASE='+database+';UID='+username+';PWD=' + password
 
+# def test():
+#     conn = pymssql.connect(server=server, user=username, password='Dragos123', database=database)
+#     cursor = conn.cursor()
+
+#     cursor.execute('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES')  
+#     row = cursor.fetchone()  
+#     while row:  
+#         print(f"{row}\n")     
+#         row = cursor.fetchone()  
+
+    # conn.close()
 
 def execute_query(query):
-    with pyodbc.connect(connection_string) as conn:
+    # with pyodbc.connect(connection_string) as conn:
+    with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
         with conn.cursor() as cursor:
             cursor.execute(query)
             row = cursor.fetchall()
@@ -36,8 +49,10 @@ def insert(table_data):
         print(f"{querry}", file=text_file)
     
 
-    with pyodbc.connect(connection_string) as conn:
+    # with pyodbc.connect(connection_string) as conn:
+    with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
         with conn.cursor() as cursor:
+            print(f'Sql query execution starting in : {time.time()-start_time}')
             cursor.execute(querry)
             print(f'Sql query execution finished in : {time.time()-start_time}')
             # result=cursor.fetchall()

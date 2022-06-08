@@ -9,6 +9,7 @@ import database_connection
 # except:
 #     print("Azure Database is not connected")
 
+
 app = Flask(__name__)
 app.secret_key = 'sogard'
 app.config["UPLOAD_FOLDER"] = os.path.join(
