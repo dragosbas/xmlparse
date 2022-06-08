@@ -1,4 +1,4 @@
-from flask import (Flask, request,jsonify)
+from flask import (Flask, request,jsonify,send_file)
 import os,zipfile,time,xmltodict
 import database_connection
 from flask_cors import CORS
@@ -24,12 +24,17 @@ app.config["UPLOAD_FOLDER"] = os.path.join(
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
+        raport='--Raportul a fost generat in data de '+time.strftime("%d/%m/%Y")+' la ora '+time.strftime("%H:%M:%S")+'\n'
         start_time = time.time()
         upload_folder = app.config['UPLOAD_FOLDER']
         try:
-            APPROVED_CUI=request.form.get('companyCui','27878713')
-            REPORT_DATE=request.form.get('reportDate','2019-01-01')
-            # param = request.form
+            APPROVED_CUI=request.form.get('companyCui','None')
+            PERIOADA=request.form.get('reportDate','2022-01-01')
+            DISAPROVED_COR=request.form.get('corExclus','0001')
+            FILE_REQUESTED=request.form.get('fileRequested','NO')
+            lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),cryptCNP(request.form.get('cnp2'))]
+            lista_cor_exclus=[DISAPROVED_COR]
+            
             for filename in os.listdir(upload_folder):
                 os.remove(os.path.join(upload_folder, filename))
             file=request.form.get('file',request.files['file'])
@@ -60,24 +65,42 @@ def upload_file():
                     xmlData+=file_as_xml['XmlReport']['Salariati']['Salariat']
                     currentfile.close()
                 os.remove(os.path.join(upload_folder, filename))
+            raport+=f"--Time until xml merge end : {time.time() - start_time}"
         except:
             return(jsonify({"error": "Problems parsing xml files"}))    
-        print(f"Time until xml parse end : {time.time() - start_time}")
+       
         try:
-            processed_database=process(xmlData)
-            database_connection.insert(processed_database)
+            processed_database=process(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA)
+            raport+=f"--Time until xml processing ends : {time.time() - start_time}"
         except:
-            return(jsonify({"error": "Error while inserting data in database"}))
+            return(jsonify({"error": "Problems processing xml files"}))
         
-        print(f"Time until sql injection end : {time.time() - start_time}, for company {CUI}")
-
-        return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None"})
+        querry_report=database_connection.insert(processed_database['tabele'])
+        
+        raport+=processed_database['raport']
+        if FILE_REQUESTED=='YES': return send_file('Preview_Output.sql')
+        return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport})
     return '''
     <!doctype html>
     <title>Upload new File</title>
     <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
+    <form method=post enctype=multipart/form-data><br>
+      <input type=file name=file><br>
+      <label for="corExclus">NUMA COR DE EXCLUS:    </label><br>
+      <input type=text name="corExclus" value=''><br>
+      <label for="cnp1">CNP1 DE EXCLUS:   </label><br>
+      <input type=text name="cnp1" value=''><br>
+      <label for="cnp2">CNP2 DE EXCLUS:   </label><br>
+      <input type=text name="cnp2" value=''><br>
+      <label for="companyCui">CUI COMPANIE LA CARE USER ARE ACCES:   </label><br>
+      <input type=text name="companyCui" value='27878713'><br>
+      <label for="reportDate">Data pentru care se face raportul :</label><br>
+      <input type=text name="reportDate" value='2022-01-01'><br>
+      <label for="minCor">Numar minim de CORuri pentru care se face uploadarea NOT YET IMPLEMENTED   </label><br>
+      <input type=text name="minCor" value='1' ><br><br>
+      <label for="fileRequested">Reply as file</label><br>
+      <input type=text name="fileRequested" value='YES'><br><br>
+      
       <input type=submit value=Upload>
     </form>
     '''
@@ -103,7 +126,7 @@ def rename_dict_keys(source):
     #     result[key.lower()] = source[key]
     return source
 
-def process(xmlData):
+def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada='2022-01-01'):
     final_export_salariati=[]
     final_export_contracte=[]
     final_export_cor=[]
@@ -113,21 +136,23 @@ def process(xmlData):
     final_export_nationalitate=[]
     final_export_tara_domiciliu=[]
     final_export_detalii_salariati_straini=[]
+    final_export_sporuri_salariu=[]
     for salariat in xmlData:
-        salariat_export={'id':len(final_export_salariati)}
-
+        salariat_export={'id':len(final_export_salariati),'perioada':perioada}
+        salariat_export['cnp']=cryptCNP(salariat.get('Cnp').split('T')[0])
+        if salariat_export['cnp'] in lista_cnp_crypt:continue #sari peste cnp in ista lista
+        
         salariat = filter_dict(salariat)
         
         # salariat_export['adresa']=salariat.get('Adresa')
-        salariat_export['nume']=salariat.get('Nume')
+        # salariat_export['nume']=salariat.get('Nume')
         salariat_export['apatrid']=salariat.get('Apatrid')
         salariat_export['audit_entries']=salariat.get('AuditEntries')
-        salariat_export['cnp']=cryptCNP(salariat.get('Cnp'))
         salariat_export['luna_nastere']=salariat.get('Cnp')[3:5]
         salariat_export['an_nastere']=salariat.get('Cnp')[1:3]
         salariat_export['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
         salariat_export['audit_entries']=salariat.get('AuditEntries')
-        salariat_export['cnp_vechi']=salariat.get('CnpVechi')
+        # salariat_export['cnp_vechi']=salariat.get('CnpVechi')
         salariat_export['tip_act_de_identitate']=salariat.get('TipActIdentitate')
 
 
@@ -155,14 +180,6 @@ def process(xmlData):
             final_export_tara_domiciliu.append(tara_domiciliu)
         salariat_export['tara_domiciliu_id']=final_export_tara_domiciliu.index(tara_domiciliu)
 
-        # sporuri_salariu = contract.get('SporuriSalariu').get('Spor')
-        # if sporuri_salariu.__class__.__name__ == 'list':
-        #     lista_sporuri=sporuri_salariu
-        # else:
-        #     lista_sporuri=[sporuri_salariu]
-        # for spor in lista_sporuri:
-        #     spor=filter_dict(spor)
-        #     spor_export={}
 
         contracte_salariat=salariat.get('Contracte').get('Contract')
         if contracte_salariat.__class__.__name__ == 'list':
@@ -171,30 +188,53 @@ def process(xmlData):
             contract_list=[contracte_salariat]
         
         for contract in contract_list:
+            contract_export={'id':len(final_export_contracte),'salariat_id':salariat_export['id']}
+            contract_export['radiat']=contract.get('Radiat')
+            if contract_export['radiat']=='true': continue
+            
+            # filtru nepreluare contracte radiate
+
             contract=filter_dict(contract)
-            contract_export={'id':len(final_export_contracte),'sariat_id':salariat_export['id']}
-        
-            contract_export['audit_entries']=contract.get('AuditEntries')
-            contract_export['data_consemnare']=contract.get('DataConsemnare').split('T')[0]
+            contract_export['audit_entries']        =contract.get('AuditEntries')
+            contract_export['data_consemnare']      =contract.get('DataConsemnare').split('T')[0]
             contract_export['data_inceput_contract']=contract.get('DataInceputContract').split('T')[0]
             contract_export['data_sfarsit_contract']=contract.get('DataSfarsitContract').split('T')[0]
-            contract_export['date_contract_vechi']=contract.get('DateContractVechi').split('T')[0]
-            contract_export['detalii']=contract.get('Detalii')
-            contract_export['detalii_mutare']=contract.get('DetaliiMutare')
+            contract_export['date_contract_vechi']  =contract.get('DateContractVechi').split('T')[0]
+            contract_export['detalii']              =contract.get('Detalii')
+            contract_export['detalii_mutare']       =contract.get('DetaliiMutare')
             contract_export['exceptii_data_sfarsit']=contract.get('ExceptiiDataSfarsit')
-            contract_export['numar_contract']=contract.get('NumarContract')
+            contract_export['numar_contract']       =contract.get('NumarContract')
             contract_export['numere_contract_vechi']=contract.get('NumereContractVechi')
-            contract_export['radiat']=contract.get('Radiat')
-            contract_export['tip_contract_munca']=contract.get('TipContractMunca')
-            contract_export['tip_durata']=contract.get('TipDurata')       
-            contract_export['tip_norma']=contract.get('TipNorma')
+            
+            contract_export['tip_contract_munca']   =contract.get('TipContractMunca')
+            contract_export['tip_durata']           =contract.get('TipDurata')       
+            contract_export['tip_norma']            =contract.get('TipNorma')
             
             cor=contract.get('Cor')
+            if cor.get('Cod') in lista_cor_exclus: continue # sari peste cnp din lista
             cor_export={'cod':cor.get('Cod'),'versiune':cor.get('Versiune')}
             if cor_export not in final_export_cor:
                 final_export_cor.append(cor_export)
             contract_export['cor_id']=final_export_cor.index(cor_export)
             
+            sporuri_salariu = contract.get('SporuriSalariu',[{"None":None}])
+            if sporuri_salariu.__class__.__name__ == 'list':
+                lista_sporuri=sporuri_salariu
+            else:
+                lista_sporuri=[sporuri_salariu]
+            for spor in lista_sporuri:
+                if spor=='None': continue
+                spor_export={
+                    'is_procent':spor.get('Spor',{}).get('IsProcent',"None"),
+                    'valoare':spor.get('Spor',{}).get('Valoare',"None"),
+                    'tip_spor':spor.get('Spor',{}).get('Tip',"None").get('@i:type',"None"),
+                    'nume':spor.get('Spor',{}).get('Tip',"None").get('Nume',"None"),
+                    'versiune':spor.get('Spor',{}).get('Tip',"None").get('Versiune',"None"),
+                    'contract_id':contract_export['id']
+                    }
+                final_export_sporuri_salariu.append(spor_export)
+
+
             timp_munca=filter_dict(contract.get('TimpMunca'))
             timp_munca_export={'durata':timp_munca.get('Durata')}
             timp_munca_export['interval_de_timp']=timp_munca.get('IntervalDeTimp')
@@ -203,7 +243,7 @@ def process(xmlData):
 
             if timp_munca_export not in final_export_timp_munca:
                 final_export_timp_munca.append(timp_munca_export)
-            contract_export['timp_munca']=final_export_timp_munca.index(timp_munca_export)
+            contract_export['timp_munca_id']=final_export_timp_munca.index(timp_munca_export)
             
             stare_curenta=filter_dict(contract.get('StareCurenta'))
             stare_curenta_export={'type':stare_curenta.get('@i:type')}
@@ -216,20 +256,27 @@ def process(xmlData):
             
             if stare_curenta_export not in final_export_stare_curenta:
                 final_export_stare_curenta.append(stare_curenta_export)
-            contract_export['stare_curenta']=final_export_stare_curenta.index(stare_curenta_export)
+            contract_export['stare_curenta_id']=final_export_stare_curenta.index(stare_curenta_export)
 
-            final_export_contracte.append(contract_export)   
+            final_export_contracte.append(contract_export)
+        if len(contract_export.keys())==2:continue               #daca nu are contracte de munca, nu se adauga salariatul 
         salariat_export['upload_date']=time.strftime("%Y-%m-%d") #year - month - day_abbr
         final_export_salariati.append(rename_dict_keys(salariat_export))
     
+    
+    # removing less then cors
+    
+
     #adding id's from position in list
     final_export_localitate=add_id(final_export_localitate)
     final_export_cor=add_id(final_export_cor)
     final_export_timp_munca=add_id(final_export_timp_munca)
     final_export_stare_curenta=add_id(final_export_stare_curenta)
+    final_export_sporuri_salariu=add_id(final_export_sporuri_salariu)
     final_export_detalii_salariati_straini=add_id(final_export_detalii_salariati_straini)
     text_summary=''
-    text_summary+=(f'----Numar de contracte munca------------- {len(final_export_contracte)}')
+    text_summary+=(f'\n----Numar de contracte munca------------- {len(final_export_contracte)}')
+    text_summary+=(f'\n----Numar de sporuri--------------------- {len(final_export_sporuri_salariu)}')
     text_summary+=(f'\n----Numar de salariati------------------- {len(final_export_salariati)}')
     text_summary+=(f'\n----Numar de localitati------------------ {len(final_export_localitate)}')
     text_summary+=(f'\n----Numar de COR-uri distincte----------- {len(final_export_cor)}')
@@ -246,7 +293,16 @@ def process(xmlData):
     # print(f'----Exemplu de Stare_curente- {final_export_stare_curenta[0]}')
     # print(f'----Exemplu DetaliiSalariati- {final_export_detalii_salariati_straini[0]}')
     
-    return {'contracte':final_export_contracte,'salariati':final_export_salariati,'localitati':final_export_localitate,'cor':final_export_cor,'timp_munca':final_export_timp_munca,'stare_curenta':final_export_stare_curenta,'detalii_salariati_straini':final_export_detalii_salariati_straini}
+    return {'tabele':{
+        'AAcontracte':final_export_contracte,
+        'AAsalariati':final_export_salariati,
+        'AAlocalitati':final_export_localitate,
+        'AAcor':final_export_cor,
+        'AAtimp_munca':final_export_timp_munca,
+        'AAstare_curenta':final_export_stare_curenta,
+        'AAdetalii_salariati_straini':final_export_detalii_salariati_straini,
+        'AAsporuri_salariu':final_export_sporuri_salariu},
+        'raport':text_summary}
  
 if __name__ == "__main__":
     CORS(app.run(debug=True))
