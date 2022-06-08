@@ -1,4 +1,3 @@
-from re import S
 from flask import (Flask, request,jsonify)
 import os,zipfile,time,xmltodict
 import database_connection
@@ -29,6 +28,7 @@ def upload_file():
         try:
             APPROVED_CUI=request.form.get('companyCui','27878713')
             REPORT_DATE=request.form.get('reportDate','2019-01-01')
+            param = request.form
             for filename in os.listdir(upload_folder):
                 os.remove(os.path.join(upload_folder, filename))
             file = request.files['file']
