@@ -98,7 +98,7 @@ def upload_file():
       <input type=text name="companyCui" value='27878713'><br>
       <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
       <input type=text name="reportDate" value='2022-01-01'><br>
-      <label for="minCor">Numar minim de CORuri pentru care se face uploadarea NOT YET IMPLEMENTED   </label><br>
+      <label for="minCor">Numar minim de CORuri pentru care se face uploadarea IMPLEMENTED !   </label><br>
       <input type=text name="minCor" value='1' ><br><br>
       <label for="fileRequested">Reply as file</label><br>
       <input type=text name="fileRequested" value='YES'><br><br>
