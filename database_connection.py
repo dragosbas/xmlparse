@@ -44,15 +44,15 @@ def insert(table_data):
             querry = querry[:-1]+");"
         # break
     print(f'Sql query building finished in : {time.time()-start_time}')
-    with open("revisalImportQuery.sql", "w") as text_file:
+    with open("revisalImportQuery.sql", "w",encoding="utf-8") as text_file:
         print(f"{querry}", file=text_file)
-    try:
-        with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
-            with conn.cursor() as cursor:
-                print(f'Sql query execution starting in : {time.time()-start_time}')
-                cursor.execute(querry)
-                print(f'Sql query execution finished in : {time.time()-start_time}')
-    except:
-        querry+="-- insertul nu a mers ! "
+    # try:
+    #     with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
+    #         with conn.cursor() as cursor:
+    #             print(f'Sql query execution starting in : {time.time()-start_time}')
+    #             cursor.execute(querry)
+    #             print(f'Sql query execution finished in : {time.time()-start_time}')
+    # except:
+    #     querry+="-- insertul nu a mers ! "
     return querry
     

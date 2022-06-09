@@ -34,7 +34,9 @@ def upload_file():
             FILE_REQUESTED=request.form.get('fileRequested','NO')
             lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
             lista_cor_exclus=[DISAPROVED_COR]
-            
+            try:
+                MINCOR=request.form.get('minCor') 
+            except:MINCOR=0           
             for filename in os.listdir(upload_folder):
                 os.remove(os.path.join(upload_folder, filename))
             file=request.form.get('file',request.files['file'])
@@ -69,15 +71,15 @@ def upload_file():
         except:
             return(jsonify({"error": "Problems parsing xml files"}))    
        
-        try:
-            processed_database=process(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI)
-            raport+=f"--Time until xml processing ends : {time.time() - start_time}"
-        except:
-            return(jsonify({"error": "Problems processing xml files"}))
+        # try:
+        processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
+        raport+=f"--Time until xml processing ends : {time.time() - start_time}"
+        # except:
+        # return(jsonify({"error": "Problems processing xml files"}))
         
         querry_report=database_connection.insert(processed_database['tabele'])
         
-        raport+=processed_database['raport']
+        # raport+=processed_database['raport']
         if FILE_REQUESTED=='YES': return send_file('revisalImportQuery.sql')
         return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport})
     return '''
@@ -102,9 +104,18 @@ def upload_file():
       <input type=text name="fileRequested" value='YES'><br><br>
       <input type=submit value=Upload>
     </form>
-    <h2>Last Update : 9 Jun 2022 : 10:00</h2>
+    <h2>Last Update : 10 Jun 2022 : 08:00</h2>
     '''
     
+# def get_filelds_count(dictionary={},result={},field="Cod"):
+#     for key,element in dictionary.items():
+#         if element.__class__.__name__ != 'dict':
+#             if key==field:
+#                 if key in 
+        
+    #     return get_filelds_count(dictionary[key],result)           
+    # return
+
 def cryptCNP(cnp):
     return hashlib.sha256(cnp.encode()).hexdigest()
     
@@ -116,7 +127,7 @@ def add_id(list):
 def filter_dict(dictionary):
     result={}
     for key in dictionary.keys():
-        if dictionary[key]=={'@i:nil': 'true'}:result[key]='None'
+        if dictionary[key]=={'@i:nil': 'true'}:result[key]=''
         else:result[key]=dictionary[key]
     return result
             
@@ -125,6 +136,75 @@ def rename_dict_keys(source):
     # for key in source.keys():
     #     result[key.lower()] = source[key]
     return source
+
+def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
+    result=[]
+    for salariat in xmlData:
+        salariat_export={}
+        for key,item in filter_dict(salariat).items():
+            if key!='Contracte':
+                if item.__class__.__name__!='dict':
+                    salariat_export[key]=item
+                else:
+                    for sub_item_key,sub_item_value in item.items():
+                        salariat_export[f"{key}{sub_item_key}"]=sub_item_value
+        contracte_salariat=salariat.get('Contracte').get('Contract')
+        if contracte_salariat.__class__.__name__ == 'list':
+            contract_list=contracte_salariat
+        else:
+            contract_list=[contracte_salariat]
+        
+        for contract in contract_list:
+            contract_export={}
+            contract=filter_dict(contract)
+            for key,item in contract.items():
+                if key!='SporuriSalariu':
+                    if item.__class__.__name__!='dict':
+                        contract_export[key]=item
+                    else:
+                        for sub_item_key,sub_item_value in filter_dict(item).items():
+                            contract_export[f"{key}{sub_item_key.split('@')[0]}"]=sub_item_value
+            
+            sporuri_salariu = contract.get('SporuriSalariu')
+            if sporuri_salariu=='':
+                result.append(salariat_export|contract_export)
+                continue
+            
+            if sporuri_salariu.__class__.__name__ == 'list':
+                lista_sporuri=sporuri_salariu
+            else:
+                lista_sporuri=[sporuri_salariu]
+            
+            for spor in lista_sporuri:
+                spor_export={
+                    'SporIsProcent':spor.get('Spor').get('IsProcent'),
+                    'SporValoare':spor.get('Spor').get('Valoare'),
+                    'SporTip':spor.get('Spor').get('Tip').get('@i:type'),
+                    'SporNume':spor.get('Spor').get('Tip').get('Nume'),
+                    'SporVersiune':spor.get('Spor').get('Tip').get('Versiune'),
+                }
+                result.append(salariat_export|contract_export|spor_export)
+    numar_coruri={}
+    final_keys=set()
+    for item in result:
+        numar_coruri[item['CorCod']]=1 if item['CorCod'] not in numar_coruri.keys() else numar_coruri[item['CorCod']]+1
+        final_keys.update([*item.keys()]) 
+    
+    filtered_result=[]
+    for salariat in result:
+        if salariat['Radiat']=='true' or int(numar_coruri[salariat.get('CorCod',0)])<int(minCor) or salariat['CorCod'] in lista_cor_exclus or cryptCNP(salariat['Cnp'].split(',')[0]) in lista_cnp_crypt:
+            continue
+        final_salariat={'id':len(filtered_result),'perioada':perioada,'cui':cui}
+        final_salariat['Cnp']=cryptCNP(salariat['Cnp'].split(',')[0])
+        final_salariat['luna_nastere']         =salariat.get('Cnp')[3:5]
+        final_salariat['an_nastere']           =salariat.get('Cnp')[1:3]
+        final_salariat['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
+        for cheie in final_keys:
+            if cheie in ['Cnp','Nume','Prenume','Adresa ']:continue
+            if "Data" in cheie: final_salariat[cheie]=salariat.get(cheie,"").split('T')[0]
+            else: final_salariat[cheie]=salariat.get(cheie,'')
+        filtered_result.append(final_salariat)
+    return {'tabele':{'import':filtered_result}}
 
 def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada='2022-01-01',cui=''):
     final_export_salariati=[]
@@ -151,9 +231,9 @@ def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada
         salariat_export['audit_entries']        =salariat.get('AuditEntries')
         salariat_export['luna_nastere']         =salariat.get('Cnp')[3:5]
         salariat_export['an_nastere']           =salariat.get('Cnp')[1:3]
+        salariat_export['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
         salariat_export['audit_entries']        =salariat.get('AuditEntries')
         salariat_export['tip_act_de_identitate']=salariat.get('TipActIdentitate')
-        salariat_export['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
         # salariat_export['cnp_vechi']=salariat.get('CnpVechi')
 
         detalii_salariat_strain=salariat.get('DetaliiSalariatStrain')
@@ -305,6 +385,10 @@ def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada
         'AAsporuri_salariu':final_export_sporuri_salariu},
         'raport':text_summary}
  
+# def parse2(xmlFile={}):
+#     result=[]
+#     return[]
+
 if __name__ == "__main__":
     CORS(app.run(debug=True))
     print("Starting server...")
