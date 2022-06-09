@@ -1,5 +1,5 @@
 from flask import (Flask, request,jsonify,send_file)
-import os,zipfile,time,xmltodict
+import os,zipfile,time,xmltodict,hashlib
 import database_connection
 from flask_cors import CORS
 
@@ -106,8 +106,8 @@ def upload_file():
     '''
     
 def cryptCNP(cnp):
-    return cnp[::-1]
-
+    return hashlib.sha256(cnp.encode()).hexdigest()
+    
 def add_id(list):
     for pos_in_list in range(0,len(list)):
         list[pos_in_list]['id']=pos_in_list
