@@ -70,7 +70,7 @@ def upload_file():
             return(jsonify({"error": "Problems parsing xml files"}))    
        
         try:
-            processed_database=process(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA)
+            processed_database=process(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI)
             raport+=f"--Time until xml processing ends : {time.time() - start_time}"
         except:
             return(jsonify({"error": "Problems processing xml files"}))
@@ -83,7 +83,7 @@ def upload_file():
     return '''
     <!doctype html>
     <title>Upload new File</title>
-    <h1>Upload new File</h1>
+    <h1>Upload new File </h1>
     <form method=post enctype=multipart/form-data><br>
       <input type=file name=file><br>
       <label for="corExclus">Numar COR de exclus:    </label><br>
@@ -102,6 +102,7 @@ def upload_file():
       <input type=text name="fileRequested" value='YES'><br><br>
       <input type=submit value=Upload>
     </form>
+    <h2>Last Update : 9 Jun 2022 : 10:00</h2>
     '''
     
 def cryptCNP(cnp):
@@ -125,7 +126,7 @@ def rename_dict_keys(source):
     #     result[key.lower()] = source[key]
     return source
 
-def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada='2022-01-01'):
+def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada='2022-01-01',cui=''):
     final_export_salariati=[]
     final_export_contracte=[]
     final_export_cor=[]
@@ -137,7 +138,7 @@ def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada
     final_export_detalii_salariati_straini=[]
     final_export_sporuri_salariu=[]
     for salariat in xmlData:
-        salariat_export={'id':len(final_export_salariati),'perioada':perioada}
+        salariat_export={'id':len(final_export_salariati),'perioada':perioada,'cui':cui}
         salariat_export['cnp']=cryptCNP(salariat.get('Cnp').split(',')[0])
         if salariat_export['cnp'] in lista_cnp_crypt:
             continue #sari peste cnp in ista lista
