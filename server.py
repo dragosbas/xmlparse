@@ -32,7 +32,7 @@ def upload_file():
             PERIOADA=request.form.get('reportDate','2022-01-01')
             DISAPROVED_COR=request.form.get('corExclus','0001')
             FILE_REQUESTED=request.form.get('fileRequested','NO')
-            lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),cryptCNP(request.form.get('cnp2'))]
+            lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
             lista_cor_exclus=[DISAPROVED_COR]
             
             for filename in os.listdir(upload_folder):
@@ -86,13 +86,13 @@ def upload_file():
     <h1>Upload new File</h1>
     <form method=post enctype=multipart/form-data><br>
       <input type=file name=file><br>
-      <label for="corExclus">NUMA COR DE EXCLUS:    </label><br>
+      <label for="corExclus">Numar COR de exclus:    </label><br>
       <input type=text name="corExclus" value=''><br>
-      <label for="cnp1">CNP1 DE EXCLUS:   </label><br>
+      <label for="cnp1">CNP#1 de exclus (varianta necriptat):   </label><br>
       <input type=text name="cnp1" value=''><br>
-      <label for="cnp2">CNP2 DE EXCLUS:   </label><br>
+      <label for="cnp2">CNP#2 de exclus (varianta criptat):   </label><br>
       <input type=text name="cnp2" value=''><br>
-      <label for="companyCui">CUI COMPANIE LA CARE USER ARE ACCES:   </label><br>
+      <label for="companyCui">CUI companie la care utilizatorul are acces:   </label><br>
       <input type=text name="companyCui" value='27878713'><br>
       <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
       <input type=text name="reportDate" value='2022-01-01'><br>
@@ -138,28 +138,29 @@ def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada
     final_export_sporuri_salariu=[]
     for salariat in xmlData:
         salariat_export={'id':len(final_export_salariati),'perioada':perioada}
-        salariat_export['cnp']=cryptCNP(salariat.get('Cnp').split('T')[0])
-        if salariat_export['cnp'] in lista_cnp_crypt:continue #sari peste cnp in ista lista
+        salariat_export['cnp']=cryptCNP(salariat.get('Cnp').split(',')[0])
+        if salariat_export['cnp'] in lista_cnp_crypt:
+            continue #sari peste cnp in ista lista
         
         salariat = filter_dict(salariat)
         
         # salariat_export['adresa']=salariat.get('Adresa')
         # salariat_export['nume']=salariat.get('Nume')
-        salariat_export['apatrid']=salariat.get('Apatrid')
-        salariat_export['audit_entries']=salariat.get('AuditEntries')
-        salariat_export['luna_nastere']=salariat.get('Cnp')[3:5]
-        salariat_export['an_nastere']=salariat.get('Cnp')[1:3]
-        salariat_export['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
-        salariat_export['audit_entries']=salariat.get('AuditEntries')
-        # salariat_export['cnp_vechi']=salariat.get('CnpVechi')
+        salariat_export['apatrid']              =salariat.get('Apatrid')
+        salariat_export['audit_entries']        =salariat.get('AuditEntries')
+        salariat_export['luna_nastere']         =salariat.get('Cnp')[3:5]
+        salariat_export['an_nastere']           =salariat.get('Cnp')[1:3]
+        salariat_export['audit_entries']        =salariat.get('AuditEntries')
         salariat_export['tip_act_de_identitate']=salariat.get('TipActIdentitate')
-
+        salariat_export['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
+        # salariat_export['cnp_vechi']=salariat.get('CnpVechi')
 
         detalii_salariat_strain=salariat.get('DetaliiSalariatStrain')
         if detalii_salariat_strain=="None":detalii_salariat_strain={}   
         detalii_salariat_export={'data_inceput_autorizatie':detalii_salariat_strain.get('DataInceputAutorizatie','None').split('T')[0]}
         detalii_salariat_export['data_sfarsit_autorizatie']=detalii_salariat_strain.get('DataSfarsitAutorizatie','None').split('T')[0]
         detalii_salariat_export['tip_autorizatie']=detalii_salariat_strain.get('TipAutorizatie','None')
+        
         if detalii_salariat_export not in final_export_detalii_salariati_straini:
             final_export_detalii_salariati_straini.append(detalii_salariat_export)
         salariat_export['detalii_salariat_strain_id']=final_export_detalii_salariati_straini.index(detalii_salariat_export)
