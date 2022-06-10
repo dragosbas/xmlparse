@@ -208,7 +208,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         contract['Perioada']=perioada
         for restricted_field in restricted_fields:
             contract.pop(restricted_field,"")
-        if contract.get('IdSalariat') not in id_salariati_export:
+        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")=='true':
             continue
         id_contracte_export.add(id_contract)
         if contract_cor_counts.get(contract.get('CorCod'))==None:
