@@ -1,5 +1,7 @@
+from cmath import e
+import re
 from flask import (Flask, request,jsonify,send_file)
-import os,zipfile,time,xmltodict,hashlib
+import os,time,xmltodict,hashlib,shutil
 import database_connection
 from flask_cors import CORS
 
@@ -27,36 +29,41 @@ def upload_file():
         raport='--Raportul a fost generat in data de '+time.strftime("%d/%m/%Y")+' la ora '+time.strftime("%H:%M:%S")+'\n'
         start_time = time.time()
         upload_folder = app.config['UPLOAD_FOLDER']
+        APPROVED_CUI=request.form.get('companyCui','')
+        PERIOADA=request.form.get('reportDate','2022-01-01')
+        DISAPROVED_COR=request.form.get('corExclus','0001')
+        FILE_REQUESTED=request.form.get('fileRequested','NO')
+        lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
+        lista_cor_exclus=[DISAPROVED_COR]
         try:
-            APPROVED_CUI=request.form.get('companyCui','None')
-            PERIOADA=request.form.get('reportDate','2022-01-01')
-            DISAPROVED_COR=request.form.get('corExclus','0001')
-            FILE_REQUESTED=request.form.get('fileRequested','NO')
-            lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
-            lista_cor_exclus=[DISAPROVED_COR]
+            MINCOR=int(request.form.get('minCor',"0"))
+        except:
+            MINCOR=1 
+        
+        for filename in os.listdir(upload_folder):
+            os.remove(os.path.join(upload_folder, filename))
+        
+        try:
+            uploaded_file=request.form.get('file',request.files['file'])
+            uploaded_file.save(os.path.join(upload_folder, uploaded_file.name))
+            shutil.unpack_archive(os.path.join(upload_folder, uploaded_file.name),os.path.join(upload_folder),"tar")
+            os.remove(os.path.join(upload_folder, uploaded_file.name))
+        except:
+            return (jsonify({"success":"None","time":time.time() - start_time,'error':'Nu s-a putut procesa fisierul rvs'}))
+        
+        at_least_one_valid_file=False 
+        for filename in os.listdir(upload_folder):
             try:
-                MINCOR=request.form.get('minCor') 
-            except:MINCOR=0           
-            for filename in os.listdir(upload_folder):
-                os.remove(os.path.join(upload_folder, filename))
-            file=request.form.get('file',request.files['file'])
-            #Unzip File 1
-            with zipfile.ZipFile((file), mode='r') as my_zip:
-                my_zip.extractall(upload_folder)
-            my_zip.close()
-        except:
-            return(jsonify({"success":"none","error": "Initial container file is not a zip file"}))
-        try:     
-            #Unzip grouped xmls
-            for filename in os.listdir(upload_folder):
-                with zipfile.ZipFile(os.path.join(upload_folder, filename), mode='r') as my_zip:
-                    my_zip.extractall(upload_folder)
-                my_zip.close()
-                os.remove(os.path.join(upload_folder, filename))
-        except:
-            return(jsonify({"success":"None","time":time.time() - start_time,"error": "Container does not contain zip files"}))
+                shutil.unpack_archive(os.path.join(upload_folder, filename),os.path.join(upload_folder),"zip")
+                at_least_one_valid_file=True
+            except:
+                pass
+            os.remove(os.path.join(upload_folder, filename))
+        if not at_least_one_valid_file:
+            return(jsonify({"success":"None","time":time.time() - start_time,"error": "Container does not contain zip files"}))        
         
         xmlData=[]
+        
         try:
             for filename in os.listdir(upload_folder):
                 with open(os.path.join(upload_folder, filename), 'rt', encoding="utf8") as currentfile:
@@ -69,13 +76,13 @@ def upload_file():
                 os.remove(os.path.join(upload_folder, filename))
             raport+=f"--Time until xml merge end : {time.time() - start_time}"
         except:
-            return(jsonify({"error": "Problems parsing xml files"}))    
+            return(jsonify({"success":"None","time":time.time() - start_time,"error": "Problems merging xml files"}))    
        
-        # try:
-        processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
-        raport+=f"--Time until xml processing ends : {time.time() - start_time}"
-        # except:
-        # return(jsonify({"error": "Problems processing xml files"}))
+        try:
+            processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
+            raport+=f"--Time until xml processing ends : {time.time() - start_time}"
+        except:
+            return(jsonify({"error": "Problems processing xml files"}))
         
         querry_report=database_connection.insert(processed_database['tabele'])
         
@@ -98,7 +105,7 @@ def upload_file():
       <input type=text name="companyCui" value='27878713'><br>
       <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
       <input type=text name="reportDate" value='2022-01-01'><br>
-      <label for="minCor">Numar minim de CORuri pentru care se face uploadarea IMPLEMENTED !   </label><br>
+      <label for="minCor">Numar minim de CORuri pentru care se face uploadarea !   </label><br>
       <input type=text name="minCor" value='1' ><br><br>
       <label for="fileRequested">Reply as file</label><br>
       <input type=text name="fileRequested" value='YES'><br><br>
@@ -106,15 +113,6 @@ def upload_file():
     </form>
     <h2>Last Update : 10 Jun 2022 : 08:00</h2>
     '''
-    
-# def get_filelds_count(dictionary={},result={},field="Cod"):
-#     for key,element in dictionary.items():
-#         if element.__class__.__name__ != 'dict':
-#             if key==field:
-#                 if key in 
-        
-    #     return get_filelds_count(dictionary[key],result)           
-    # return
 
 def cryptCNP(cnp):
     return hashlib.sha256(cnp.encode()).hexdigest()
@@ -132,22 +130,24 @@ def filter_dict(dictionary):
     return result
             
 def rename_dict_keys(source):
-    # result = {}
-    # for key in source.keys():
-    #     result[key.lower()] = source[key]
     return source
 
 def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
-    result=[]
+    temp_export_salariati={} #de pastrat
+    temp_export_contracte={} #de pastrat
+    temp_export_sporuri_salariu={} #de pastrat
+    
     for salariat in xmlData:
-        salariat_export={}
-        for key,item in filter_dict(salariat).items():
-            if key!='Contracte':
+        salariat_export={'Id':len(temp_export_salariati)+1}
+        for restricted_field,item in filter_dict(salariat).items():
+            if restricted_field!='Contracte':
                 if item.__class__.__name__!='dict':
-                    salariat_export[key]=item
+                    salariat_export[restricted_field]=item
                 else:
                     for sub_item_key,sub_item_value in item.items():
-                        salariat_export[f"{key}{sub_item_key}"]=sub_item_value
+                        salariat_export[f"{restricted_field}{sub_item_key}"]=sub_item_value
+        temp_export_salariati[salariat_export.get('Id')]=salariat_export
+
         contracte_salariat=salariat.get('Contracte').get('Contract')
         if contracte_salariat.__class__.__name__ == 'list':
             contract_list=contracte_salariat
@@ -155,19 +155,19 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_list=[contracte_salariat]
         
         for contract in contract_list:
-            contract_export={}
+            contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id')}
             contract=filter_dict(contract)
-            for key,item in contract.items():
-                if key!='SporuriSalariu':
+            for restricted_field,item in contract.items():
+                if restricted_field!='SporuriSalariu':
                     if item.__class__.__name__!='dict':
-                        contract_export[key]=item
+                        contract_export[restricted_field]=item.split('T')[0]
                     else:
                         for sub_item_key,sub_item_value in filter_dict(item).items():
-                            contract_export[f"{key}{sub_item_key.split('@')[0]}"]=sub_item_value
-            
-            sporuri_salariu = contract.get('SporuriSalariu')
+                            contract_export[f"{restricted_field}{sub_item_key.split('@')[0]}"]=sub_item_value
+            temp_export_contracte[contract_export.get('Id',"")]=contract_export
+
+            sporuri_salariu = contract.get('SporuriSalariu',"")
             if sporuri_salariu=='':
-                result.append(salariat_export|contract_export)
                 continue
             
             if sporuri_salariu.__class__.__name__ == 'list':
@@ -177,217 +177,70 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             
             for spor in lista_sporuri:
                 spor_export={
+                    'Id':len(temp_export_sporuri_salariu)+1,
+                    'IdContract':contract_export.get('Id',""),
                     'SporIsProcent':spor.get('Spor').get('IsProcent'),
                     'SporValoare':spor.get('Spor').get('Valoare'),
                     'SporTip':spor.get('Spor').get('Tip').get('@i:type'),
                     'SporNume':spor.get('Spor').get('Tip').get('Nume'),
                     'SporVersiune':spor.get('Spor').get('Tip').get('Versiune'),
                 }
-                result.append(salariat_export|contract_export|spor_export)
-    numar_coruri={}
-    final_keys=set()
-    for item in result:
-        numar_coruri[item['CorCod']]=1 if item['CorCod'] not in numar_coruri.keys() else numar_coruri[item['CorCod']]+1
-        final_keys.update([*item.keys()]) 
-    
-    filtered_result=[]
-    for salariat in result:
-        if salariat['Radiat']=='true' or int(numar_coruri[salariat.get('CorCod',0)])<int(minCor) or salariat['CorCod'] in lista_cor_exclus or cryptCNP(salariat['Cnp'].split(',')[0]) in lista_cnp_crypt:
+                temp_export_sporuri_salariu[spor_export.get('Id')]=spor_export
+    id_salariati_export=set()
+    id_contracte_export=set()
+    id_sporuri_export=set()
+    restricted_fields=['Nume',"Prenume","Adresa"]
+    for id_salariat,salariat in temp_export_salariati.items():
+        salariat['Cui']=cui
+        salariat['Perioada']=perioada
+        salariat['LunaNastere']=salariat.get('Cnp')[3:5]
+        salariat['AnNastere']=salariat.get('Cnp')
+        salariat['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
+        salariat['Cnp']=cryptCNP(salariat.get('Cnp'))
+        for restricted_field in restricted_fields:
+            salariat.pop(restricted_field,"")
+        if salariat['Cnp'] not in lista_cnp_crypt: 
+            id_salariati_export.add(id_salariat) #nu preiau angajatii care au cnp invalid
+
+    contract_cor_counts={}
+    for id_contract,contract in temp_export_contracte.items():
+        contract['Cui']=cui
+        contract['Perioada']=perioada
+        for restricted_field in restricted_fields:
+            contract.pop(restricted_field,"")
+        if contract.get('IdSalariat') not in id_salariati_export:
             continue
-        final_salariat={'id':len(filtered_result),'perioada':perioada,'cui':cui}
-        final_salariat['Cnp']=cryptCNP(salariat['Cnp'].split(',')[0])
-        final_salariat['luna_nastere']         =salariat.get('Cnp')[3:5]
-        final_salariat['an_nastere']           =salariat.get('Cnp')[1:3]
-        final_salariat['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
-        for cheie in final_keys:
-            if cheie in ['Cnp','Nume','Prenume','Adresa ']:continue
-            if "Data" in cheie: final_salariat[cheie]=salariat.get(cheie,"").split('T')[0]
-            else: final_salariat[cheie]=salariat.get(cheie,'')
-        filtered_result.append(final_salariat)
-    return {'tabele':{'SampleImport':filtered_result}}
-
-def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada='2022-01-01',cui=''):
-    final_export_salariati=[]
-    final_export_contracte=[]
-    final_export_cor=[]
-    final_export_stare_curenta=[]
-    final_export_timp_munca=[]
-    final_export_localitate=[]
-    final_export_nationalitate=[]
-    final_export_tara_domiciliu=[]
-    final_export_detalii_salariati_straini=[]
-    final_export_sporuri_salariu=[]
-    for salariat in xmlData:
-        salariat_export={'id':len(final_export_salariati),'perioada':perioada,'cui':cui}
-        salariat_export['cnp']=cryptCNP(salariat.get('Cnp').split(',')[0])
-        if salariat_export['cnp'] in lista_cnp_crypt:
-            continue #sari peste cnp in ista lista
-        
-        salariat = filter_dict(salariat)
-        
-        # salariat_export['adresa']=salariat.get('Adresa')
-        # salariat_export['nume']=salariat.get('Nume')
-        salariat_export['apatrid']              =salariat.get('Apatrid')
-        salariat_export['audit_entries']        =salariat.get('AuditEntries')
-        salariat_export['luna_nastere']         =salariat.get('Cnp')[3:5]
-        salariat_export['an_nastere']           =salariat.get('Cnp')[1:3]
-        salariat_export['sex']="M" if salariat.get('Cnp') in ['1','5'] else 'F' 
-        salariat_export['audit_entries']        =salariat.get('AuditEntries')
-        salariat_export['tip_act_de_identitate']=salariat.get('TipActIdentitate')
-        # salariat_export['cnp_vechi']=salariat.get('CnpVechi')
-
-        detalii_salariat_strain=salariat.get('DetaliiSalariatStrain')
-        if detalii_salariat_strain=="None":detalii_salariat_strain={}   
-        detalii_salariat_export={'data_inceput_autorizatie':detalii_salariat_strain.get('DataInceputAutorizatie','None').split('T')[0]}
-        detalii_salariat_export['data_sfarsit_autorizatie']=detalii_salariat_strain.get('DataSfarsitAutorizatie','None').split('T')[0]
-        detalii_salariat_export['tip_autorizatie']=detalii_salariat_strain.get('TipAutorizatie','None')
-        
-        if detalii_salariat_export not in final_export_detalii_salariati_straini:
-            final_export_detalii_salariati_straini.append(detalii_salariat_export)
-        salariat_export['detalii_salariat_strain_id']=final_export_detalii_salariati_straini.index(detalii_salariat_export)
-            
-        localitate=salariat.get('Localitate')
-        if localitate not in final_export_localitate:
-            final_export_localitate.append(localitate)
-        salariat_export['localitate_id']=final_export_localitate.index(localitate)
-        
-        nationalitate=salariat.get('Nationalitate')
-        if nationalitate not in final_export_nationalitate:
-            final_export_nationalitate.append(nationalitate)
-        salariat_export['nationalitate_id']=final_export_nationalitate.index(nationalitate)
-        
-        tara_domiciliu=salariat.get('TaraDomiciliu')
-        if tara_domiciliu not in final_export_tara_domiciliu:
-            final_export_tara_domiciliu.append(tara_domiciliu)
-        salariat_export['tara_domiciliu_id']=final_export_tara_domiciliu.index(tara_domiciliu)
-
-
-        contracte_salariat=salariat.get('Contracte').get('Contract')
-        if contracte_salariat.__class__.__name__ == 'list':
-            contract_list=contracte_salariat
+        id_contracte_export.add(id_contract)
+        if contract_cor_counts.get(contract.get('CorCod'))==None:
+            contract_cor_counts[contract.get('CorCod')]=1
         else:
-            contract_list=[contracte_salariat]
-        
-        for contract in contract_list:
-            contract_export={'id':len(final_export_contracte),'salariat_id':salariat_export['id']}
-            contract_export['radiat']=contract.get('Radiat')
-            if contract_export['radiat']=='true': continue
-            
-            # filtru nepreluare contracte radiate
+            contract_cor_counts[contract.get('CorCod')]+=1
 
-            contract=filter_dict(contract)
-            contract_export['audit_entries']        =contract.get('AuditEntries')
-            contract_export['data_consemnare']      =contract.get('DataConsemnare').split('T')[0]
-            contract_export['data_inceput_contract']=contract.get('DataInceputContract').split('T')[0]
-            contract_export['data_sfarsit_contract']=contract.get('DataSfarsitContract').split('T')[0]
-            contract_export['date_contract_vechi']  =contract.get('DateContractVechi').split('T')[0]
-            contract_export['detalii']              =contract.get('Detalii')
-            contract_export['detalii_mutare']       =contract.get('DetaliiMutare')
-            contract_export['exceptii_data_sfarsit']=contract.get('ExceptiiDataSfarsit')
-            contract_export['numar_contract']       =contract.get('NumarContract')
-            contract_export['numere_contract_vechi']=contract.get('NumereContractVechi')
-            
-            contract_export['tip_contract_munca']   =contract.get('TipContractMunca')
-            contract_export['tip_durata']           =contract.get('TipDurata')       
-            contract_export['tip_norma']            =contract.get('TipNorma')
-            
-            cor=contract.get('Cor')
-            if cor.get('Cod') in lista_cor_exclus: continue # sari peste cnp din lista
-            cor_export={'cod':cor.get('Cod'),'versiune':cor.get('Versiune')}
-            if cor_export not in final_export_cor:
-                final_export_cor.append(cor_export)
-            contract_export['cor_id']=final_export_cor.index(cor_export)
-            
-            sporuri_salariu = contract.get('SporuriSalariu',[{"None":None}])
-            if sporuri_salariu.__class__.__name__ == 'list':
-                lista_sporuri=sporuri_salariu
-            else:
-                lista_sporuri=[sporuri_salariu]
-            for spor in lista_sporuri:
-                if spor=='None': continue
-                spor_export={
-                    'is_procent':spor.get('Spor',{}).get('IsProcent',"None"),
-                    'valoare':spor.get('Spor',{}).get('Valoare',"None"),
-                    'tip_spor':spor.get('Spor',{}).get('Tip',"None").get('@i:type',"None"),
-                    'nume':spor.get('Spor',{}).get('Tip',"None").get('Nume',"None"),
-                    'versiune':spor.get('Spor',{}).get('Tip',"None").get('Versiune',"None"),
-                    'contract_id':contract_export['id']
-                    }
-                final_export_sporuri_salariu.append(spor_export)
+    for id_contract,contract in temp_export_contracte.items():
+        if contract_cor_counts.get(contract.get('CorCod'))<minCor:
+            id_salariati_export.discard(contract.get('IdSalariat')) # scot angajatii care au contracte sub minimc cor
+            id_contracte_export.discard(id_contract) # scot contracte sub minim cor
 
-
-            timp_munca=filter_dict(contract.get('TimpMunca'))
-            timp_munca_export={'durata':timp_munca.get('Durata')}
-            timp_munca_export['interval_de_timp']=timp_munca.get('IntervalDeTimp')
-            timp_munca_export['norma']=timp_munca.get('Norma')
-            timp_munca_export['repartizare']=timp_munca.get('Repartizare')
-
-            if timp_munca_export not in final_export_timp_munca:
-                final_export_timp_munca.append(timp_munca_export)
-            contract_export['timp_munca_id']=final_export_timp_munca.index(timp_munca_export)
-            
-            stare_curenta=filter_dict(contract.get('StareCurenta'))
-            stare_curenta_export={'type':stare_curenta.get('@i:type')}
-            stare_curenta_export['data_incetare_detasare']=stare_curenta.get('DataIncetareDetasare','None').split('T')[0]
-            stare_curenta_export['data_incetare_suspendare']=stare_curenta.get('DataIncetareSuspendare','None').split('T')[0]
-            stare_curenta_export['stare_precedenta']=stare_curenta.get('StarePrecedenta','None')
-            stare_curenta_export['data_incetare']=stare_curenta.get('DataIncetare','None').split('T')[0]
-            stare_curenta_export['explicatie']=stare_curenta.get('Explicatie','None')
-            stare_curenta_export['temei_legal']=stare_curenta.get('TemeiLegal','None')
-            
-            if stare_curenta_export not in final_export_stare_curenta:
-                final_export_stare_curenta.append(stare_curenta_export)
-            contract_export['stare_curenta_id']=final_export_stare_curenta.index(stare_curenta_export)
-
-            final_export_contracte.append(contract_export)
-        if len(contract_export.keys())==2:continue               #daca nu are contracte de munca, nu se adauga salariatul 
-        salariat_export['upload_date']=time.strftime("%Y-%m-%d") #year - month - day_abbr
-        final_export_salariati.append(rename_dict_keys(salariat_export))
-    
-    
-    # removing less then cors
-    
-
-    #adding id's from position in list
-    final_export_localitate=add_id(final_export_localitate)
-    final_export_cor=add_id(final_export_cor)
-    final_export_timp_munca=add_id(final_export_timp_munca)
-    final_export_stare_curenta=add_id(final_export_stare_curenta)
-    final_export_sporuri_salariu=add_id(final_export_sporuri_salariu)
-    final_export_detalii_salariati_straini=add_id(final_export_detalii_salariati_straini)
-    text_summary=''
-    text_summary+=(f'\n----Numar de contracte munca------------- {len(final_export_contracte)}')
-    text_summary+=(f'\n----Numar de sporuri--------------------- {len(final_export_sporuri_salariu)}')
-    text_summary+=(f'\n----Numar de salariati------------------- {len(final_export_salariati)}')
-    text_summary+=(f'\n----Numar de localitati------------------ {len(final_export_localitate)}')
-    text_summary+=(f'\n----Numar de COR-uri distincte----------- {len(final_export_cor)}')
-    text_summary+=(f'\n----Numar de Incadrari in TimpMunca------ {len(final_export_timp_munca)}')
-    text_summary+=(f'\n----Numar de Stari curente distincte ---- {len(final_export_stare_curenta)}')
-    text_summary+=(f'\n----Numar Detalii Salariati Straini ----- {len(final_export_detalii_salariati_straini)}')
-    text_summary+=('\n------------------------------------------------')
-    print(text_summary)
-    # print(f'----Exemplu de contracte----- {final_export_contracte[0]}')
-    # print(f'----Exemplu de salariati----- {final_export_salariati[0]}')
-    # print(f'----Exemplu de localitati---- {final_export_localitate[0]}')
-    # print(f'----Exemplu de COR----------- {final_export_cor[0]}')
-    # print(f'----Exemplu de TimpMunca----- {final_export_timp_munca[0]}')
-    # print(f'----Exemplu de Stare_curente- {final_export_stare_curenta[0]}')
-    # print(f'----Exemplu DetaliiSalariati- {final_export_detalii_salariati_straini[0]}')
+    for id_spor,spor in temp_export_sporuri_salariu.items():
+        spor['Cui']=cui
+        spor['Perioada']=perioada
+        for restricted_field in restricted_fields:
+            spor.pop(restricted_field,"")
+        if spor.get('IdContract') in id_contracte_export: id_sporuri_export.add(id_spor)
+    export_salariati=[]
+    export_contracte=[]
+    export_sporuri_salariu=[]
+    for id_salariat in id_salariati_export:
+        export_salariati.append(temp_export_salariati.get(id_salariat))
+    for id_contract in id_contracte_export:
+        export_contracte.append(temp_export_contracte.get(id_contract))
+    for id_spor in id_sporuri_export:
+        export_sporuri_salariu.append(temp_export_sporuri_salariu.get(id_spor))
     
     return {'tabele':{
-        'AAcontracte':final_export_contracte,
-        'AAsalariati':final_export_salariati,
-        'AAlocalitati':final_export_localitate,
-        'AAcor':final_export_cor,
-        'AAtimp_munca':final_export_timp_munca,
-        'AAstare_curenta':final_export_stare_curenta,
-        'AAdetalii_salariati_straini':final_export_detalii_salariati_straini,
-        'AAsporuri_salariu':final_export_sporuri_salariu},
-        'raport':text_summary}
- 
-# def parse2(xmlFile={}):
-#     result=[]
-#     return[]
+        "AAsalariati":export_salariati,
+        "AAcontracte":export_contracte,
+        "AAsporuri":export_sporuri_salariu}}
 
 if __name__ == "__main__":
     CORS(app.run(debug=True))
