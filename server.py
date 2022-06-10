@@ -111,7 +111,7 @@ def upload_file():
       <input type=text name="fileRequested" value='YES'><br><br>
       <input type=submit value=Upload>
     </form>
-    <h2>Last Update : 10 Jun 2022 : 08:00</h2>
+    <h2>Last Update : 10 Jun 2022 : 21:00</h2>
     '''
 
 def cryptCNP(cnp):
