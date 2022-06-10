@@ -88,7 +88,7 @@ def upload_file():
         
         # raport+=processed_database['raport']
         if FILE_REQUESTED=='YES': return send_file('revisalImportQuery.sql')
-        return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport})
+        return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport,'tables':processed_database.get('tabele',{})})
     return '''
     <!doctype html>
     <title>Upload new File</title>
