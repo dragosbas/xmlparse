@@ -91,7 +91,7 @@ def upload_file():
         return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport,'tables':processed_database.get('tabele',{})})
     return '''
     <!doctype html>
-    <title>Upload new File</title>
+    <title>Upload RVS File</title>
     <h1>Upload new File </h1>
     <form method=post enctype=multipart/form-data><br>
       <input type=file name=file><br>
