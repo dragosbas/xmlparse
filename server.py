@@ -204,7 +204,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             if "Data" in cheie: final_salariat[cheie]=salariat.get(cheie,"").split('T')[0]
             else: final_salariat[cheie]=salariat.get(cheie,'')
         filtered_result.append(final_salariat)
-    return {'tabele':{'import':filtered_result}}
+    return {'tabele':{'SampleImport':filtered_result}}
 
 def process(xmlData,lista_cnp_crypt=[],lista_cor_exclus=[],min_nr_cor=1,perioada='2022-01-01',cui=''):
     final_export_salariati=[]
