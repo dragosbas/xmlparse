@@ -1,3 +1,5 @@
+from cmath import e
+import re
 from flask import (Flask, request,jsonify,send_file)
 import os,time,xmltodict,hashlib,shutil
 import database_connection
@@ -30,7 +32,7 @@ def upload_file():
         APPROVED_CUI=request.form.get('companyCui','')
         PERIOADA=request.form.get('reportDate','2022-01-01')
         DISAPROVED_COR=request.form.get('corExclus','0001')
-        FILE_REQUESTED=request.form.get('fileRequested','JSON')
+        FILE_REQUESTED=request.form.get('fileRequested','NO')
         lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
         lista_cor_exclus=[DISAPROVED_COR]
         try:
@@ -85,35 +87,31 @@ def upload_file():
         querry_report=database_connection.insert(processed_database['tabele'])
         
         # raport+=processed_database['raport']
-        if FILE_REQUESTED=='SQL':
-            return send_file('revisalImportQuery.sql')
-        elif FILE_REQUESTED=='XLSX':
-            return send_file('revisalImport.xlsx')
+        if FILE_REQUESTED=='YES': return send_file('revisalImportQuery.sql')
         return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport,'tables':processed_database.get('tabele',{})})
     return '''
-        <!doctype html>
-        <title>Upload RVS File</title>
-        <h1>Upload new File </h1>
-        <form method=post enctype=multipart/form-data><br>
-            <input type=file name=file><br>
-            <label for="corExclus">Numar COR de exclus:    </label><br>
-            <input type=text name="corExclus" value=''><br>
-            <label for="cnp1">CNP#1 de exclus (varianta necriptat):   </label><br>
-            <input type=text name="cnp1" value=''><br>
-            <label for="cnp2">CNP#2 de exclus (varianta criptat):   </label><br>
-            <input type=text name="cnp2" value=''><br>
-            <label for="companyCui">CUI companie la care utilizatorul are acces:   </label><br>
-            <input type=text name="companyCui" value='27878713'><br>
-            <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
-            <input type=text name="reportDate" value='2022-01-01'><br>
-            <label for="minCor">Numar minim de CORuri pentru care se face uploadarea !   </label><br>
-            <input type=text name="minCor" value='1' ><br><br>
-            <input type="radio" name="fileRequested" id="option1" value="SQL" checked>Generate Report as SQL</input><br>
-            <input type="radio" name="fileRequested" id="option2" value="XLSX">Generate Report as XLSX</input><br>
-            <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
-            <input type=submit value=Upload>
-        </form>
-        <h2>Last Update : 14 Jun 2022 : 10:00</h2>
+    <!doctype html>
+    <title>Upload RVS File</title>
+    <h1>Upload new File </h1>
+    <form method=post enctype=multipart/form-data><br>
+      <input type=file name=file><br>
+      <label for="corExclus">Numar COR de exclus:    </label><br>
+      <input type=text name="corExclus" value=''><br>
+      <label for="cnp1">CNP#1 de exclus (varianta necriptat):   </label><br>
+      <input type=text name="cnp1" value=''><br>
+      <label for="cnp2">CNP#2 de exclus (varianta criptat):   </label><br>
+      <input type=text name="cnp2" value=''><br>
+      <label for="companyCui">CUI companie la care utilizatorul are acces:   </label><br>
+      <input type=text name="companyCui" value='27878713'><br>
+      <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
+      <input type=text name="reportDate" value='2022-01-01'><br>
+      <label for="minCor">Numar minim de CORuri pentru care se face uploadarea !   </label><br>
+      <input type=text name="minCor" value='1' ><br><br>
+      <label for="fileRequested">Reply as file</label><br>
+      <input type=text name="fileRequested" value='YES'><br><br>
+      <input type=submit value=Upload>
+    </form>
+    <h2>Last Update : 10 Jun 2022 : 21:00</h2>
     '''
 
 def cryptCNP(cnp):
@@ -138,15 +136,19 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     temp_export_salariati={} #de pastrat
     temp_export_contracte={} #de pastrat
     temp_export_sporuri_salariu={} #de pastrat
+    try:
+        IndexCol=f"{cui}_{perioada.split('-')[0]}_{perioada.split('-')[1]}"
+    except:
+        IndexCol=f"{cui}_1900_01"
     for salariat in xmlData:
-        salariat_export={'Id':len(temp_export_salariati)+1}
-        for field_name,item in filter_dict(salariat).items():
-            if field_name!='Contracte':
+        salariat_export={'Id':len(temp_export_salariati)+1,"IndexCol":f"{IndexCol}_{salariat['Cnp']}"}
+        for restricted_field,item in filter_dict(salariat).items():
+            if restricted_field!='Contracte':
                 if item.__class__.__name__!='dict':
-                    salariat_export[field_name]=item
+                    salariat_export[restricted_field]=item
                 else:
                     for sub_item_key,sub_item_value in item.items():
-                        salariat_export[f"{field_name}{sub_item_key}"]=sub_item_value.split('T0')[0]
+                        salariat_export[f"{restricted_field}{sub_item_key}"]=sub_item_value
         temp_export_salariati[salariat_export.get('Id')]=salariat_export
 
         contracte_salariat=salariat.get('Contracte').get('Contract')
@@ -156,15 +158,15 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_list=[contracte_salariat]
         
         for contract in contract_list:
-            contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id')}
+            contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id'),"IndexCol":f"{IndexCol}_{contract.get('NumarContract','000')}"}
             contract=filter_dict(contract)
-            for field_name,item in contract.items():
-                if field_name!='SporuriSalariu':
+            for restricted_field,item in contract.items():
+                if restricted_field!='SporuriSalariu':
                     if item.__class__.__name__!='dict':
-                        contract_export[field_name]=item.split('T0')[0]
+                        contract_export[restricted_field]=item.split('T')[0]
                     else:
                         for sub_item_key,sub_item_value in filter_dict(item).items():
-                            contract_export[f"{field_name}{sub_item_key.split('@')[0]}"]=sub_item_value.split('T0')[0]
+                            contract_export[f"{restricted_field}{sub_item_key.split('@')[0]}"]=sub_item_value
             temp_export_contracte[contract_export.get('Id',"")]=contract_export
 
             sporuri_salariu = contract.get('SporuriSalariu',"")
@@ -179,6 +181,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             for spor in lista_sporuri:
                 spor_export={
                     'Id':len(temp_export_sporuri_salariu)+1,
+                    "IndexCol":IndexCol,
                     'IdContract':contract_export.get('Id',""),
                     'SporIsProcent':spor.get('Spor').get('IsProcent'),
                     'SporValoare':spor.get('Spor').get('Valoare'),
@@ -187,16 +190,10 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
                     'SporVersiune':spor.get('Spor').get('Tip').get('Versiune'),
                 }
                 temp_export_sporuri_salariu[spor_export.get('Id')]=spor_export
-    
-    salariat_keys=set()
-    contract_keys=set()
-    spor_keys=set()
-    
     id_salariati_export=set()
     id_contracte_export=set()
     id_sporuri_export=set()
     restricted_fields=['Nume',"Prenume","Adresa"]
-    
     for id_salariat,salariat in temp_export_salariati.items():
         salariat['Cui']=cui
         salariat['Perioada']=perioada
@@ -204,19 +201,17 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         salariat['AnNastere']=salariat.get('Cnp')
         salariat['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
         salariat['Cnp']=cryptCNP(salariat.get('Cnp'))
-        for field_name in restricted_fields:
-            salariat.pop(field_name,"")
+        for restricted_field in restricted_fields:
+            salariat.pop(restricted_field,"")
         if salariat['Cnp'] not in lista_cnp_crypt: 
             id_salariati_export.add(id_salariat) #nu preiau angajatii care au cnp invalid
-        for key in salariat.keys():
-            salariat_keys.add(key)
 
     contract_cor_counts={}
     for id_contract,contract in temp_export_contracte.items():
         contract['Cui']=cui
         contract['Perioada']=perioada
-        for field_name in restricted_fields:
-            contract.pop(field_name,"")
+        for restricted_field in restricted_fields:
+            contract.pop(restricted_field,"")
         if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")=='true':
             continue
         id_contracte_export.add(id_contract)
@@ -224,45 +219,27 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_cor_counts[contract.get('CorCod')]=1
         else:
             contract_cor_counts[contract.get('CorCod')]+=1
-        for key in contract.keys():
-            contract_keys.add(key)
 
     for id_contract,contract in temp_export_contracte.items():
         if contract_cor_counts.get(contract.get('CorCod'))<minCor:
             id_salariati_export.discard(contract.get('IdSalariat')) # scot angajatii care au contracte sub minimc cor
             id_contracte_export.discard(id_contract) # scot contracte sub minim cor
-        
 
     for id_spor,spor in temp_export_sporuri_salariu.items():
         spor['Cui']=cui
         spor['Perioada']=perioada
-        for field_name in restricted_fields:
-            spor.pop(field_name,"")
+        for restricted_field in restricted_fields:
+            spor.pop(restricted_field,"")
         if spor.get('IdContract') in id_contracte_export: id_sporuri_export.add(id_spor)
-        for key in spor.keys():
-            spor_keys.add(key)
-
     export_salariati=[]
     export_contracte=[]
     export_sporuri_salariu=[]
-    
     for id_salariat in id_salariati_export:
-        salariat={}
-        for key in salariat_keys:
-            salariat[key]=temp_export_salariati.get(id_salariat).get(key,"")
-        export_salariati.append(salariat)
-
+        export_salariati.append(temp_export_salariati.get(id_salariat))
     for id_contract in id_contracte_export:
-        contract={}
-        for key in contract_keys:
-            contract[key]=temp_export_contracte.get(id_contract).get(key,"")
-        export_contracte.append(contract)
-
+        export_contracte.append(temp_export_contracte.get(id_contract))
     for id_spor in id_sporuri_export:
-        spor={}
-        for key in spor_keys:
-            spor[key]=temp_export_sporuri_salariu.get(id_spor).get(key,"")
-        export_sporuri_salariu.append(spor)
+        export_sporuri_salariu.append(temp_export_sporuri_salariu.get(id_spor))
     
     return {'tabele':{
         "AAsalariati":export_salariati,

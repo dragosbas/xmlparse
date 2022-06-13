@@ -1,5 +1,8 @@
 import time
 import pymssql
+import pandas as pd
+
+
 server = 'aibest.database.windows.net'
 database = 'aibest'
 username = 'robert'
@@ -28,10 +31,10 @@ def execute_query(query):
             return(row)
 
 
-def insert(table_data):
+def insert(import_data):
     start_time=time.time()
     querry = ""
-    for table_name, table_data in table_data.items():
+    for table_name, table_data in import_data.items():
         # if table_name!="salariati": continue
         querry += f"\nDROP TABLE IF EXISTS {table_name} ;\nCREATE TABLE {table_name} ("
         for column_name, column_type in table_data[0].items():
@@ -46,6 +49,14 @@ def insert(table_data):
     print(f'Sql query building finished in : {time.time()-start_time}')
     with open("revisalImportQuery.sql", "w",encoding="utf-8") as text_file:
         print(f"{querry}", file=text_file)
+    
+    # salariati = pd.DataFrame(import_data)
+    # salariati.reset_index(drop=True,inplace=True)#reset index after duplicates
+    # writer = pd.ExcelWriter(f'output.xlsx', engine='xlsxwriter')
+    with pd.ExcelWriter(f'revisalImport.xlsx') as writer:
+        for name,data in import_data.items():
+            pd.DataFrame(data).to_excel(writer,sheet_name=name)        
+
     # try:
     #     with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
     #         with conn.cursor() as cursor:
