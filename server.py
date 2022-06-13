@@ -113,7 +113,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 14 Jun 2022 : 10:00</h2>
+        <h2>Last Update : 14 Jun 2022 : 10:01</h2>
     '''
 
 def cryptCNP(cnp):
