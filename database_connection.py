@@ -1,5 +1,5 @@
 import time
-import pymssql
+# import pymssql
 import pandas as pd
 
 
@@ -23,12 +23,12 @@ connection_string = 'DRIVER='+driver+';SERVER=tcp:'+server + \
 
     # conn.close()
     
-def execute_query(query):
-    with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-            row = cursor.fetchall()
-            return(row)
+# def execute_query(query):
+#     with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
+#         with conn.cursor() as cursor:
+#             cursor.execute(query)
+#             row = cursor.fetchall()
+#             return(row)
 
 
 def insert(import_data):
