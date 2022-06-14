@@ -76,11 +76,11 @@ def upload_file():
         except:
             return(jsonify({"success":"None","time":time.time() - start_time,"error": "Problems merging xml files"}))    
        
-        try:
-            processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
-            raport+=f"--Time until xml processing ends : {time.time() - start_time}"
-        except:
-            return(jsonify({"error": "Problems processing xml files"}))
+        # try:
+        processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
+        raport+=f"--Time until xml processing ends : {time.time() - start_time}"
+        # except:
+        #     return(jsonify({"error": "Problems processing xml files"}))
         
         querry_report=database_connection.insert(processed_database['tabele'])
         
@@ -239,9 +239,8 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     for id_contract in id_contracte_export:
         id_salariati_cu_contract.add(temp_export_contracte[id_contract].get('IdSalariat'))
 
-    # for id_salariat in id_salariati_export:
-    #     if id_salariat not in id_salariati_cu_contract:
-    #         id_salariati_export.discard(id_salariat)
+
+    id_salariati_export= set(x for x in id_salariati_export if x in id_salariati_cu_contract)
 
     for id_spor,spor in temp_export_sporuri_salariu.items():
         spor['Cui']=cui
