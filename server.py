@@ -201,7 +201,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         salariat['Cui']=cui
         salariat['Perioada']=perioada
         salariat['LunaNastere']=salariat.get('Cnp')[3:5]
-        salariat['AnNastere']=salariat.get('Cnp')
+        salariat['AnNastere']=salariat.get('Cnp')[2:3]
         salariat['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
         salariat['Cnp']=cryptCNP(salariat.get('Cnp'))
         for field_name in restricted_fields:
@@ -217,7 +217,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         contract['Perioada']=perioada
         for field_name in restricted_fields:
             contract.pop(field_name,"")
-        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")=='true':
+        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")!='false':
             continue
         id_contracte_export.add(id_contract)
         if contract_cor_counts.get(contract.get('CorCod'))==None:
