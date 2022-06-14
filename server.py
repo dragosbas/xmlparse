@@ -138,6 +138,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     temp_export_salariati={} #de pastrat
     temp_export_contracte={} #de pastrat
     temp_export_sporuri_salariu={} #de pastrat
+    
     for salariat in xmlData:
         salariat_export={'Id':len(temp_export_salariati)+1}
         for field_name,item in filter_dict(salariat).items():
@@ -208,6 +209,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             salariat.pop(field_name,"")
         if salariat['Cnp'] not in lista_cnp_crypt: 
             id_salariati_export.add(id_salariat) #nu preiau angajatii care au cnp invalid
+        
         for key in salariat.keys():
             salariat_keys.add(key)
 
@@ -217,7 +219,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         contract['Perioada']=perioada
         for field_name in restricted_fields:
             contract.pop(field_name,"")
-        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")!='false':
+        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")=='true':
             continue
         id_contracte_export.add(id_contract)
         if contract_cor_counts.get(contract.get('CorCod'))==None:
@@ -227,11 +229,19 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         for key in contract.keys():
             contract_keys.add(key)
 
+    
     for id_contract,contract in temp_export_contracte.items():
         if contract_cor_counts.get(contract.get('CorCod'))<minCor:
             id_salariati_export.discard(contract.get('IdSalariat')) # scot angajatii care au contracte sub minimc cor
             id_contracte_export.discard(id_contract) # scot contracte sub minim cor
-        
+    
+    id_salariati_cu_contract=set()
+    for id_contract in id_contracte_export:
+        id_salariati_cu_contract.add(temp_export_contracte[id_contract].get('IdSalariat'))
+
+    for id_salariat in id_salariati_export:
+        if id_salariat not in id_salariati_cu_contract:
+            id_salariati_export.discard(id_salariat)
 
     for id_spor,spor in temp_export_sporuri_salariu.items():
         spor['Cui']=cui
