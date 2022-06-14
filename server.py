@@ -113,7 +113,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 14 Jun 2022 : 10:01</h2>
+        <h2>Last Update : 14 Jun 2022 : 18:00</h2>
     '''
 
 def cryptCNP(cnp):
@@ -239,9 +239,9 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     for id_contract in id_contracte_export:
         id_salariati_cu_contract.add(temp_export_contracte[id_contract].get('IdSalariat'))
 
-    for id_salariat in id_salariati_export:
-        if id_salariat not in id_salariati_cu_contract:
-            id_salariati_export.discard(id_salariat)
+    # for id_salariat in id_salariati_export:
+    #     if id_salariat not in id_salariati_cu_contract:
+    #         id_salariati_export.discard(id_salariat)
 
     for id_spor,spor in temp_export_sporuri_salariu.items():
         spor['Cui']=cui
