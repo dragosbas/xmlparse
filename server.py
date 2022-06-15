@@ -1,3 +1,4 @@
+from datetime import datetime,timedelta
 from flask import (Flask, request,jsonify,send_file)
 import os,time,xmltodict,hashlib,shutil
 import database_connection
@@ -196,13 +197,13 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     id_salariati_export=set()
     id_contracte_export=set()
     id_sporuri_export=set()
-    restricted_fields=['Nume',"Prenume","Adresa"]
+    restricted_fields=['Nume',"Prenume","Adresa","CnpVechi","Mentiuni"]
     
     for id_salariat,salariat in temp_export_salariati.items():
         salariat['Cui']=cui
         salariat['Perioada']=perioada
         salariat['LunaNastere']=salariat.get('Cnp')[3:5]
-        salariat['AnNastere']=salariat.get('Cnp')[2:3]
+        salariat['AnNastere']=salariat.get('Cnp')[1:3]
         salariat['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
         salariat['Cnp']=cryptCNP(salariat.get('Cnp'))
         for field_name in restricted_fields:
@@ -273,10 +274,26 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             spor[key]=temp_export_sporuri_salariu.get(id_spor).get(key,"")
         export_sporuri_salariu.append(spor)
     
+    # export_research=[]
+    # for index,contract in enumerate(export_contracte):
+    #     element_research=contract
+    #     print(index,''len(export_research))
+    #     first_date=datetime.strptime(contract.get('DataInceputContract')[0:7],'%Y-%m')
+    #     DataSfarsitContract= contract.get('DataSfarsitContract')
+    #     if DataSfarsitContract=='': last_date=datetime.now()+timedelta(days=370)
+    #     else: last_date=datetime.strptime((DataSfarsitContract)[0:7],'%Y-%m')
+    #     while first_date<last_date:
+    #         element_research['ExtractedDate']=first_date.isoformat()
+    #         export_research.append(element_research)
+    #         first_date=first_date+timedelta(days=32)
+    #         first_date.replace(day=1)
+            
     return {'tabele':{
         "AAsalariati":export_salariati,
         "AAcontracte":export_contracte,
-        "AAsporuri":export_sporuri_salariu}}
+        "AAsporuri":export_sporuri_salariu,
+        # "AAresearch":export_research,
+        }}
 
 if __name__ == "__main__":
     CORS(app.run(debug=True))

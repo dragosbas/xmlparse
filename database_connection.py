@@ -40,12 +40,21 @@ def insert(import_data):
         for column_name, column_type in table_data[0].items():
             querry += f"{column_name} VARCHAR(250),"
         querry = querry[:-1]+");"
-        for row in table_data:
-            querry += f"\nINSERT INTO {table_name} VALUES ("
-            for column_name, column_value in row.items():
-                querry += f"'{column_value}',"
-            querry = querry[:-1]+");"
+        # for row in table_data:
+        #     querry += f"\nINSERT INTO {table_name} VALUES ("
+        #     for column_name, column_value in row.items():
+        #         querry += f"'{column_value}',"
+        #     querry = querry[:-1]+");"
         # break
+        for row in table_data:
+            row_columns=""
+            row_values=""
+            for column_name, column_value in row.items():
+                row_columns += f"{column_name},"
+                row_values += f"'{column_value}',"  
+            querry+= f"\nINSERT INTO {table_name} ({row_columns[:-1]}) VALUES({row_values[:-1]});"
+
+
     print(f'Sql query building finished in : {time.time()-start_time}')
     with open("revisalImportQuery.sql", "w",encoding="utf-8") as text_file:
         print(f"{querry}", file=text_file)
