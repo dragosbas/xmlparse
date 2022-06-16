@@ -1,4 +1,4 @@
-from datetime import datetime,timedelta
+
 from flask import (Flask, request,jsonify,send_file)
 import os,time,xmltodict,hashlib,shutil
 import database_connection
@@ -114,7 +114,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 14 Jun 2022 : 18:00</h2>
+        <h2>Last Update : 16 Jun 2022 : 12:00</h2>
     '''
 
 def cryptCNP(cnp):
@@ -142,13 +142,20 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     
     for salariat in xmlData:
         salariat_export={'Id':len(temp_export_salariati)+1}
-        for field_name,item in filter_dict(salariat).items():
-            if field_name!='Contracte':
-                if item.__class__.__name__!='dict':
-                    salariat_export[field_name]=item
-                else:
-                    for sub_item_key,sub_item_value in item.items():
-                        salariat_export[f"{field_name}{sub_item_key}"]=sub_item_value.split('T0')[0]
+        salariat_export['Apatrid']=salariat.get('Apatrid',"")
+        salariat_export['AuditEntries']=salariat.get('AuditEntries',"")
+        salariat_export['LocalitateCodSiruta']=salariat.get('Localitate',{}).get('CodSiruta',"")
+        salariat_export['NationalitateNume']=salariat.get('Nationalitate',{}).get('Nume',"")
+        salariat_export['LunaNastere']=salariat.get('Cnp')[3:5]
+        salariat_export['AnNastere']=salariat.get('Cnp')[1:3]
+        salariat_export['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
+        salariat_export['Cnp']=cryptCNP(salariat.get('Cnp'))
+        salariat_export['Cui']=cui
+        salariat_export['Perioada']=perioada
+        for key in salariat_export.keys():
+            if salariat_export[key]=={'@i:nil': 'true'}:salariat_export[key]=''
+            if 'Data' in key: salariat_export[key]=salariat_export[key].split('T')[0]
+
         temp_export_salariati[salariat_export.get('Id')]=salariat_export
 
         contracte_salariat=salariat.get('Contracte').get('Contract')
@@ -159,18 +166,42 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         
         for contract in contract_list:
             contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id')}
-            contract=filter_dict(contract)
-            for field_name,item in contract.items():
-                if field_name!='SporuriSalariu':
-                    if item.__class__.__name__!='dict':
-                        contract_export[field_name]=item.split('T0')[0]
-                    else:
-                        for sub_item_key,sub_item_value in filter_dict(item).items():
-                            contract_export[f"{field_name}{sub_item_key.split('@')[0]}"]=sub_item_value.split('T0')[0]
+            
+            contract_export['AuditEntries ']=contract.get('ContractNume',"")
+            contract_export['CorCod']=contract.get('Cor',{}).get('Cod',"")
+            contract_export['CorVersiune']=contract.get('Cor',{}).get('Versiune',"")
+            contract_export['DataConsemnare']=contract.get('DataConsemnare',"")
+            contract_export['DataContract']=contract.get('DataContract',"")
+            contract_export['DataInceputContract']=contract.get('DataInceputContract',"")
+            contract_export['DataSfarsitContract']=contract.get('DataSfarsitContract',"")
+            contract_export['ExceptieDataSfarsit']=contract.get('ExceptieDataSfarsit',"")
+            contract_export['NumarContract']=contract.get('NumarContract',"")
+            contract_export['Radiat']=contract.get('Radiat',"")
+            contract_export['Salariu']=contract.get('ContractNume',"")
+            contract_export['StareCurenta']=contract.get('StareCurenta',"").get('@i:type',"")
+            contract_export['StareCurentaDataIncetareDetasare']=contract.get('StareCurenta',{}).get('DataIncetareDetasare',"")
+            contract_export['StareCurentaDataIncetareSuspendare']=contract.get('StareCurenta',{}).get('DataIncetareSuspendare',"")
+            contract_export['StareCurentaStarePrecedenta']=contract.get('StareCurenta',{}).get('StarePrecedenta',"")
+            contract_export['StareCurentaDataIncetare']=contract.get('StareCurenta',{}).get('DataIncetare',"")
+            contract_export['StareCurentaTemeiLegal']=contract.get('StareCurenta',{}).get('TemeiLegal',"")
+            contract_export['StareCurentaDataInceput']=contract.get('StareCurenta',{}).get('DataInceput',"")
+            contract_export['StareCurentaDataSfarsit']=contract.get('StareCurenta',{}).get('DataSfarsit',"")
+            contract_export['TimpMuncaNorma']=contract.get('TimpMunca',{}).get('Norma',"")
+            contract_export['TimpMuncaIntervalTimp']=contract.get('TimpMunca',{}).get('IntervalTimp',"")
+            contract_export['TimpMuncaRepartizare']=contract.get('TimpMunca',{}).get('Repartizare',"")
+            contract_export['TimpMuncaDurata']=contract.get('TimpMunca',{}).get('Durata',"")
+            contract_export['TipContract']=contract.get('TipContract',"")
+            contract_export['TipDurata']=contract.get('TipDurata',"")
+            contract_export['TipNorma']=contract.get('TipNorma',"")
+
+            for key in contract_export.keys():
+                if contract_export[key]=={'@i:nil': 'true'}:contract_export[key]=''
+                if 'Data' in key: contract_export[key]=contract_export[key].split('T')[0]
+        
             temp_export_contracte[contract_export.get('Id',"")]=contract_export
 
             sporuri_salariu = contract.get('SporuriSalariu',"")
-            if sporuri_salariu=='':
+            if sporuri_salariu=={'@i:nil': 'true'}:
                 continue
             
             if sporuri_salariu.__class__.__name__ == 'list':
@@ -182,54 +213,33 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
                 spor_export={
                     'Id':len(temp_export_sporuri_salariu)+1,
                     'IdContract':contract_export.get('Id',""),
-                    'SporIsProcent':spor.get('Spor').get('IsProcent'),
-                    'SporValoare':spor.get('Spor').get('Valoare'),
-                    'SporTip':spor.get('Spor').get('Tip').get('@i:type'),
-                    'SporNume':spor.get('Spor').get('Tip').get('Nume'),
-                    'SporVersiune':spor.get('Spor').get('Tip').get('Versiune'),
+                    'SporIsProcent':spor.get('Spor',{}).get('IsProcent'),
+                    'SporValoare':spor.get('Spor',{}).get('Valoare'),
+                    'SporTip':spor.get('Spor',{}).get('Tip').get('@i:type'),
+                    'SporNume':spor.get('Spor',{}).get('Tip').get('Nume'),
+                    'SporVersiune':spor.get('Spor',{}).get('Tip').get('Versiune'),
+                    'Cui':cui,
+                    'Perioada':perioada
                 }
                 temp_export_sporuri_salariu[spor_export.get('Id')]=spor_export
-    
-    salariat_keys=set()
-    contract_keys=set()
-    spor_keys=set()
     
     id_salariati_export=set()
     id_contracte_export=set()
     id_sporuri_export=set()
-    restricted_fields=['Nume',"Prenume","Adresa","CnpVechi","Mentiuni"]
     
     for id_salariat,salariat in temp_export_salariati.items():
-        salariat['Cui']=cui
-        salariat['Perioada']=perioada
-        salariat['LunaNastere']=salariat.get('Cnp')[3:5]
-        salariat['AnNastere']=salariat.get('Cnp')[1:3]
-        salariat['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
-        salariat['Cnp']=cryptCNP(salariat.get('Cnp'))
-        for field_name in restricted_fields:
-            salariat.pop(field_name,"")
         if salariat['Cnp'] not in lista_cnp_crypt: 
             id_salariati_export.add(id_salariat) #nu preiau angajatii care au cnp invalid
         
-        for key in salariat.keys():
-            salariat_keys.add(key)
-
     contract_cor_counts={}
     for id_contract,contract in temp_export_contracte.items():
-        contract['Cui']=cui
-        contract['Perioada']=perioada
-        for field_name in restricted_fields:
-            contract.pop(field_name,"")
-        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")=='true':
+        if contract.get('IdSalariat') not in id_salariati_export or contract.get("Radiat")=='true' or contract.get('CorCod',"") in lista_cor_exclus:
             continue
         id_contracte_export.add(id_contract)
         if contract_cor_counts.get(contract.get('CorCod'))==None:
             contract_cor_counts[contract.get('CorCod')]=1
         else:
             contract_cor_counts[contract.get('CorCod')]+=1
-        for key in contract.keys():
-            contract_keys.add(key)
-
     
     for id_contract,contract in temp_export_contracte.items():
         if contract_cor_counts.get(contract.get('CorCod'))<minCor:
@@ -240,59 +250,29 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     for id_contract in id_contracte_export:
         id_salariati_cu_contract.add(temp_export_contracte[id_contract].get('IdSalariat'))
 
-
     id_salariati_export= set(x for x in id_salariati_export if x in id_salariati_cu_contract)
-
+    
     for id_spor,spor in temp_export_sporuri_salariu.items():
-        spor['Cui']=cui
-        spor['Perioada']=perioada
-        for field_name in restricted_fields:
-            spor.pop(field_name,"")
         if spor.get('IdContract') in id_contracte_export: id_sporuri_export.add(id_spor)
-        for key in spor.keys():
-            spor_keys.add(key)
-
+        
     export_salariati=[]
     export_contracte=[]
     export_sporuri_salariu=[]
-    
+
     for id_salariat in id_salariati_export:
-        salariat={}
-        for key in salariat_keys:
-            salariat[key]=temp_export_salariati.get(id_salariat).get(key,"")
-        export_salariati.append(salariat)
+        export_salariati.append(temp_export_salariati.get(id_salariat))
 
     for id_contract in id_contracte_export:
-        contract={}
-        for key in contract_keys:
-            contract[key]=temp_export_contracte.get(id_contract).get(key,"")
-        export_contracte.append(contract)
+        export_contracte.append(temp_export_contracte.get(id_contract))
 
     for id_spor in id_sporuri_export:
-        spor={}
-        for key in spor_keys:
-            spor[key]=temp_export_sporuri_salariu.get(id_spor).get(key,"")
-        export_sporuri_salariu.append(spor)
+        export_sporuri_salariu.append(temp_export_sporuri_salariu.get(id_spor))
     
-    # export_research=[]
-    # for index,contract in enumerate(export_contracte):
-    #     element_research=contract
-    #     print(index,''len(export_research))
-    #     first_date=datetime.strptime(contract.get('DataInceputContract')[0:7],'%Y-%m')
-    #     DataSfarsitContract= contract.get('DataSfarsitContract')
-    #     if DataSfarsitContract=='': last_date=datetime.now()+timedelta(days=370)
-    #     else: last_date=datetime.strptime((DataSfarsitContract)[0:7],'%Y-%m')
-    #     while first_date<last_date:
-    #         element_research['ExtractedDate']=first_date.isoformat()
-    #         export_research.append(element_research)
-    #         first_date=first_date+timedelta(days=32)
-    #         first_date.replace(day=1)
             
     return {'tabele':{
         "AAsalariati":export_salariati,
         "AAcontracte":export_contracte,
         "AAsporuri":export_sporuri_salariu,
-        # "AAresearch":export_research,
         }}
 
 if __name__ == "__main__":
