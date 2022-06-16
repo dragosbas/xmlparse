@@ -159,7 +159,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_list=[contracte_salariat]
         
         for contract in contract_list:
-            contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id')}
+            contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id'),'Perioada':perioada,'Cui':cui},
             
             contract_export['AuditEntries ']=contract.get('ContractNume',"")
             contract_export['CorCod']=contract.get('Cor',{}).get('Cod',"")
