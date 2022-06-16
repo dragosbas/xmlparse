@@ -242,7 +242,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_cor_counts[contract.get('CorCod')]+=1
     
     for id_contract,contract in temp_export_contracte.items():
-        if contract_cor_counts.get(contract.get('CorCod'))<minCor:
+        if contract_cor_counts.get(contract.get('CorCod'),0)<minCor:
             id_salariati_export.discard(contract.get('IdSalariat')) # scot angajatii care au contracte sub minimc cor
             id_contracte_export.discard(id_contract) # scot contracte sub minim cor
     
