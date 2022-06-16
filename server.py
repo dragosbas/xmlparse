@@ -90,7 +90,8 @@ def upload_file():
             return send_file('revisalImportQuery.sql')
         elif FILE_REQUESTED=='XLSX':
             return send_file('revisalImport.xlsx')
-        return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport,'tables':processed_database.get('tabele',{})})
+        # return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport,'tables':processed_database.get('tabele',{})})
+        return jsonify(processed_database.get('tabele',{}))
     return '''
         <!doctype html>
         <title>Upload RVS File</title>
