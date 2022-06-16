@@ -4,14 +4,6 @@ import os,time,xmltodict,hashlib,shutil
 import database_connection
 from flask_cors import CORS
 
-#test Azure Database
-# try:
-#     if(database_connection.execute_query("select * from dbo.app_user")):
-#         print("Azure Database is connected")
-# except:
-#     print("Azure Database is not connected")
-
-
 app = Flask(__name__)
 app.secret_key = 'sogard'
 try:
@@ -69,7 +61,8 @@ def upload_file():
                     file_as_xml = xmltodict.parse(currentfile.read())
                     CUI=file_as_xml['XmlReport']['Header']['Angajator']['Detalii']['Cui']
                     if(CUI != APPROVED_CUI):
-                        return(jsonify({"success":"None","time":time.time() - start_time,"error": "CUI does not match"}))
+                        # return(jsonify({"success":"None","time":time.time() - start_time,"error": "CUI does not match"}))
+                        return Flask.response_class("CUI does not match", status=499, mimetype='application/json')
                     xmlData+=file_as_xml['XmlReport']['Salariati']['Salariat']
                     currentfile.close()
                 os.remove(os.path.join(upload_folder, filename))
