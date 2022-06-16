@@ -62,7 +62,7 @@ def upload_file():
                     CUI=file_as_xml['XmlReport']['Header']['Angajator']['Detalii']['Cui']
                     if(CUI != APPROVED_CUI):
                         # return(jsonify({"success":"None","time":time.time() - start_time,"error": "CUI does not match"}))
-                        return Flask.response_class("CUI does not match", status=499, mimetype='application/json')
+                        return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
                     xmlData+=file_as_xml['XmlReport']['Salariati']['Salariat']
                     currentfile.close()
                 os.remove(os.path.join(upload_folder, filename))
