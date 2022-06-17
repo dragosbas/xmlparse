@@ -135,8 +135,8 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     temp_export_sporuri_salariu={} #de pastrat
     
     for salariat in xmlData:
-        # salariat_export={'Id':len(temp_export_salariati)+1}
-        salariat_export={'Id':uuid.uuid1()}
+        salariat_export={'Id':len(temp_export_salariati)+1}
+        # salariat_export={'Id':uuid.uuid1()}
         salariat_export['Apatrid']=salariat.get('Apatrid',"")
         salariat_export['AuditEntries']=salariat.get('AuditEntries',"")
         salariat_export['LocalitateCodSiruta']=salariat.get('Localitate',{}).get('CodSiruta',"")
@@ -160,8 +160,8 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_list=[contracte_salariat]
         
         for contract in contract_list:
-            # contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id'),'Perioada':perioada,'Cui':cui}
-            contract_export={'Id':uuid.uuid1(),'IdSalariat':salariat_export.get('Id'),'Perioada':perioada,'Cui':cui}
+            contract_export={'Id':len(temp_export_contracte)+1,'IdSalariat':salariat_export.get('Id'),'Perioada':perioada,'Cui':cui}
+            # contract_export={'Id':uuid.uuid1(),'IdSalariat':salariat_export.get('Id'),'Perioada':perioada,'Cui':cui}
             
             contract_export['AuditEntries ']=contract.get('ContractNume',"")
             contract_export['CorCod']=contract.get('Cor',{}).get('Cod',"")
@@ -207,8 +207,8 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             
             for spor in lista_sporuri:
                 spor_export={
-                    # 'Id':len(temp_export_sporuri_salariu)+1,
-                    'Id':uuid.uuid1(),
+                    'Id':len(temp_export_sporuri_salariu)+1,
+                    # 'Id':uuid.uuid1(),
                     'IdContract':contract_export.get('Id',""),
                     'SporIsProcent':spor.get('Spor',{}).get('IsProcent'),
                     'SporValoare':spor.get('Spor',{}).get('Valoare'),
