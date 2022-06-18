@@ -18,6 +18,7 @@ app.config["UPLOAD_FOLDER"] = os.path.join(
 def upload_file():
     if request.method == 'POST':
         raport='--Raportul a fost generat in data de '+time.strftime("%d/%m/%Y")+' la ora '+time.strftime("%H:%M:%S")+'\n'
+        result={'filename':'','error':True,'success':False,'is_d112':False,'is_rvs':False}
         start_time = time.time()
         upload_folder = app.config['UPLOAD_FOLDER']
         APPROVED_CUI=request.form.get('companyCui','')
@@ -30,52 +31,72 @@ def upload_file():
             MINCOR=int(request.form.get('minCor',"0"))
         except:
             MINCOR=1 
-        
+    
         for filename in os.listdir(upload_folder):
             os.remove(os.path.join(upload_folder, filename))
         
         try:
             uploaded_file=request.form.get('file',request.files['file'])
-            uploaded_file.save(os.path.join(upload_folder, uploaded_file.name))
-            shutil.unpack_archive(os.path.join(upload_folder, uploaded_file.name),os.path.join(upload_folder),"tar")
-            os.remove(os.path.join(upload_folder, uploaded_file.name))
+            uploaded_file.save(os.path.join(upload_folder, uploaded_file.filename))
         except:
-            return (jsonify({"success":"None","time":time.time() - start_time,'error':'Nu s-a putut procesa fisierul rvs'}))
-        
-        at_least_one_valid_file=False 
-        for filename in os.listdir(upload_folder):
-            try:
-                shutil.unpack_archive(os.path.join(upload_folder, filename),os.path.join(upload_folder),"zip")
-                at_least_one_valid_file=True
-            except:
-                pass
-            os.remove(os.path.join(upload_folder, filename))
-        if not at_least_one_valid_file:
-            return(jsonify({"success":"None","time":time.time() - start_time,"error": "Container does not contain zip files"}))        
-        
-        xmlData=[]
+            return Flask.response_class("No file attached !", status=401, mimetype='application/json')
         
         try:
-            for filename in os.listdir(upload_folder):
-                with open(os.path.join(upload_folder, filename), 'rt', encoding="utf8") as currentfile:
-                    file_as_xml = xmltodict.parse(currentfile.read())
-                    CUI=file_as_xml['XmlReport']['Header']['Angajator']['Detalii']['Cui']
-                    if(CUI != APPROVED_CUI):
-                        # return(jsonify({"success":"None","time":time.time() - start_time,"error": "CUI does not match"}))
-                        return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
-                    xmlData+=file_as_xml['XmlReport']['Salariati']['Salariat']
-                    currentfile.close()
-                os.remove(os.path.join(upload_folder, filename))
-            raport+=f"--Time until xml merge end : {time.time() - start_time}"
+            shutil.unpack_archive(os.path.join(upload_folder, uploaded_file.filename),os.path.join(upload_folder),"tar")
+            os.remove(os.path.join(upload_folder, uploaded_file.filename))
+            result['is_rvs']=True
         except:
-            return(jsonify({"success":"None","time":time.time() - start_time,"error": "Problems merging xml files"}))    
-       
-        # try:
-        processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
-        raport+=f"--Time until xml processing ends : {time.time() - start_time}"
-        # except:
-        #     return(jsonify({"error": "Problems processing xml files"}))
+            result['is_rvs']=False
+
+        at_least_one_valid_file=False 
+        if result['is_rvs']:
+            for filename in os.listdir(upload_folder):
+                try:
+                    shutil.unpack_archive(os.path.join(upload_folder, filename),os.path.join(upload_folder),"zip")
+                    at_least_one_valid_file=True
+                except:
+                    pass
+                os.remove(os.path.join(upload_folder, filename))
+            if not at_least_one_valid_file:
+                return Flask.response_class("RVS FILE INCOMPLETE !", status=401, mimetype='application/json')
         
+        xmlData=[]
+        if result['is_rvs']:
+            try:
+                for filename in os.listdir(upload_folder):
+                    with open(os.path.join(upload_folder, filename), 'rt', encoding="utf8") as currentfile:
+                        file_as_xml = xmltodict.parse(currentfile.read())
+                        CUI=file_as_xml.get('XmlReport',{}).get('Header',{}).get('Angajator',{}).get('Detalii',{}).get('Cui','0001')
+                        if CUI!=APPROVED_CUI:
+                            return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
+                        xmlData+=file_as_xml.get('XmlReport',{}).get('Salariati',{}).get('Salariat',[])
+                        currentfile.close()
+                    os.remove(os.path.join(upload_folder, filename))
+                raport+=f"--Time until xml merge end : {time.time() - start_time}"
+            except:
+                return Flask.response_class("XML merge failuare", status=401, mimetype='application/json')
+        else:
+            try:
+                with open(os.path.join(upload_folder, uploaded_file.filename), 'rt', encoding="utf8") as currentfile:
+                    file_as_xml = xmltodict.parse(currentfile.read(),xml_attribs=True)
+                    CUI=file_as_xml.get('declaratieUnica',{}).get('angajator',{}).get('@cif','0001')
+                    # if CUI!=APPROVED_CUI:
+                    #     return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
+                    xmlData=file_as_xml.get('declaratieUnica',{})
+                    currentfile.close()
+                os.remove(os.path.join(upload_folder, uploaded_file.filename))
+                result['is_d112']=True
+            except:
+                return Flask.response_class("XML parse failuare", status=401, mimetype='application/json')       
+        
+        if result['is_rvs']:
+            # try:
+                processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
+                raport+=f"--Time until xml processing ends : {time.time() - start_time}"
+            # except:
+            #     return Flask.response_class("Problems processing xml files", status=401, mimetype='application/json')        
+        if result['is_d112']:
+                processed_database=process1(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
         querry_report=database_connection.insert(processed_database['tabele'])
         
         # raport+=processed_database['raport']
@@ -108,7 +129,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 16 Jun 2022 : 12:00</h2>
+        <h2>Last Update : 18 Jun 2022 : 13:30</h2>
     '''
 
 def cryptCNP(cnp):
@@ -129,6 +150,51 @@ def filter_dict(dictionary):
 def rename_dict_keys(source):
     return source
 
+def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01',cui='0001',minCor=1):
+    export_angajator=[]
+    angajator_simple_keys={}
+    for detaliu_angajator,valoare in xmlData.get('angajator',{}).items():
+        if "@" in detaliu_angajator:
+            angajator_simple_keys[detaliu_angajator.split('@')[1]]=valoare
+    
+    for detaliu_angajator,valoare in xmlData.get('angajator',{}).items():
+        if "@" in detaliu_angajator or valoare=='':
+            continue
+        current_anganjator={'Id':len(export_angajator)+1,'CUI':cui,'Perioada':perioada}|angajator_simple_keys
+        if type(valoare)==dict:
+            valoare_as_list=[valoare]
+        else: valoare_as_list=valoare
+        for row in valoare_as_list:
+            for key,value in row.items():
+                current_anganjator[f"{detaliu_angajator}_{key}"]=value          
+        export_angajator.append(current_anganjator)
+    export_asigurat_keys=set()
+    export_asigurat=[]
+    asigurati=xmlData.get('asigurat',{})
+    for asigurat in asigurati:
+        current_asigurat={'Id':len(export_asigurat)+1,'CUI':cui,'Perioada':perioada}
+        for detaliu_asigurat,valoare in asigurat.items():
+            if "@" in detaliu_asigurat:
+                if 'cnp' in detaliu_asigurat:
+                    current_asigurat[detaliu_asigurat.split('@')[1]]=cryptCNP(valoare)
+                current_asigurat[detaliu_asigurat.split('@')[1]]=valoare
+                export_asigurat_keys.add(detaliu_asigurat.split('@')[1])
+            else:
+                if type(valoare)==dict:
+                    for new_key,new_value in valoare.items():
+                        current_asigurat[f"{detaliu_asigurat}_{new_key}"]=new_value
+                        export_asigurat_keys.add(f"{detaliu_asigurat}_{new_key}")
+        export_asigurat.append(current_asigurat)
+    for asigurat in export_asigurat:
+        for key in export_asigurat_keys:
+            if key not in asigurat.keys():
+                asigurat[key]=''
+    
+    return {'tabele':{
+    "angajator":export_angajator,
+    "angajat":export_asigurat,
+    }}
+    
 def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     temp_export_salariati={} #de pastrat
     temp_export_contracte={} #de pastrat
@@ -271,6 +337,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         "AAcontracte":export_contracte,
         "AAsporuri":export_sporuri_salariu,
         }}
+
 
 if __name__ == "__main__":
     CORS(app.run(debug=True))
