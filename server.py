@@ -80,8 +80,8 @@ def upload_file():
                 with open(os.path.join(upload_folder, uploaded_file.filename), 'rt', encoding="utf8") as currentfile:
                     file_as_xml = xmltodict.parse(currentfile.read(),xml_attribs=True)
                     CUI=file_as_xml.get('declaratieUnica',{}).get('angajator',{}).get('@cif','0001')
-                    # if CUI!=APPROVED_CUI:
-                    #     return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
+                    if CUI!=APPROVED_CUI:
+                        return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
                     xmlData=file_as_xml.get('declaratieUnica',{})
                     currentfile.close()
                 os.remove(os.path.join(upload_folder, uploaded_file.filename))
