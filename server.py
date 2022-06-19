@@ -26,6 +26,8 @@ def upload_file():
         DISAPROVED_COR=request.form.get('corExclus','0001')
         FILE_REQUESTED=request.form.get('fileRequested','JSON')
         lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
+        BANNEDCNP=request.form.getlist('BannedCnp')
+        lista_cnp_crypt+=BANNEDCNP
         lista_cor_exclus=[DISAPROVED_COR]
         try:
             MINCOR=int(request.form.get('minCor',"0"))
@@ -151,6 +153,7 @@ def rename_dict_keys(source):
     return source
 
 def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01',cui='0001',minCor=1):
+    campuri_retrictionate=['@numeAsig','@prenAsig']
     export_angajator=[]
     angajator_simple_keys={}
     for detaliu_angajator,valoare in xmlData.get('angajator',{}).items():
@@ -174,17 +177,21 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     for asigurat in asigurati:
         current_asigurat={'Id':len(export_asigurat)+1,'CUI':cui,'Perioada':perioada}
         for detaliu_asigurat,valoare in asigurat.items():
+            if detaliu_asigurat in campuri_retrictionate: continue
             if "@" in detaliu_asigurat:
-                if 'cnp' in detaliu_asigurat:
-                    current_asigurat[detaliu_asigurat.split('@')[1]]=cryptCNP(valoare)
-                current_asigurat[detaliu_asigurat.split('@')[1]]=valoare
+                if detaliu_asigurat.find('@cnp')!=-1:
+                    valoare = cryptCNP(valoare)
+                    if valoare in lista_cnp_crypt: valoare=''
+                    current_asigurat[detaliu_asigurat.split('@')[1]]=valoare
+                else: current_asigurat[detaliu_asigurat.split('@')[1]]=valoare
                 export_asigurat_keys.add(detaliu_asigurat.split('@')[1])
             else:
                 if type(valoare)==dict:
                     for new_key,new_value in valoare.items():
-                        current_asigurat[f"{detaliu_asigurat}_{new_key}"]=new_value
-                        export_asigurat_keys.add(f"{detaliu_asigurat}_{new_key}")
-        export_asigurat.append(current_asigurat)
+                        if new_key.find('@')!=-1:new_key=new_key.split('@')[1]
+                        current_asigurat[new_key]=new_value
+                        export_asigurat_keys.add(new_key)
+        if current_asigurat.get('cnpAsig')!='': export_asigurat.append(current_asigurat)
     for asigurat in export_asigurat:
         for key in export_asigurat_keys:
             if key not in asigurat.keys():
