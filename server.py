@@ -175,6 +175,8 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     for asigurat in asigurati:
         current_asigurat={'Id':len(export_asigurat)+1,'CUI':cui,'Perioada':perioada}
         for detaliu_asigurat,valoare in asigurat.items():
+            if valoare=='2911009100165': 
+                print('aici')
             if detaliu_asigurat in campuri_retrictionate: continue
             if "@" in detaliu_asigurat:
                 if detaliu_asigurat.find('@cnp')!=-1:
@@ -184,14 +186,16 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
                 else: current_asigurat[detaliu_asigurat.replace('@','')]=valoare
                 export_asigurat_keys.add(detaliu_asigurat.replace('@',''))
             else:
+                if type(valoare)==list: valoare=valoare[0]
                 if type(valoare)==dict:
                     for new_key,new_value in valoare.items():
                         if new_key.find('@')!=-1:new_key=new_key.replace('@','')
                         current_asigurat[f"{detaliu_asigurat}_{new_key}"]=new_value
                         export_asigurat_keys.add(f"{detaliu_asigurat}_{new_key}")
         if current_asigurat.get('cnpAsig')!='': export_asigurat.append(current_asigurat)
+    
     for asigurat in export_asigurat:
-        for key in export_asigurat_keys:
+        for key in sorted(export_asigurat_keys):
             if key not in asigurat.keys():
                 asigurat[key]=''
     
