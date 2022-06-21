@@ -3,6 +3,7 @@ from flask import (Flask, request,jsonify,send_file)
 import os,time,xmltodict,hashlib,shutil,uuid
 import database_connection
 from flask_cors import CORS
+import json
 
 app = Flask(__name__)
 app.secret_key = 'sogard'
@@ -25,8 +26,11 @@ def upload_file():
         PERIOADA=request.form.get('reportDate','2022-01-01')
         DISAPROVED_COR=request.form.get('corExclus','0001')
         FILE_REQUESTED=request.form.get('fileRequested','JSON')
-        lista_cnp_crypt=[cryptCNP(request.form.get('cnp1')),request.form.get('cnp2')]
-        BANNEDCNP=request.form.getlist('BannedCnp')
+        lista_cnp_crypt=[cryptCNP(request.form.get('cnp1', "")),request.form.get('cnp2', "")]
+        # BANNEDCNP=request.form.get('bannedCnp', []).replace("'", "").replace("[", "").replace("]", "").replace('"', "").split(",")
+        BANNEDCNP = json.loads(request.form.get('bannedCnp'))
+        print(BANNEDCNP)
+        print("-----------")
         lista_cnp_crypt+=BANNEDCNP
         lista_cor_exclus=[DISAPROVED_COR]
         try:
