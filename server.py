@@ -131,7 +131,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 18 Jun 2022 : 13:30</h2>
+        <h2>Last Update : 21 Jun 2022 : 10:00</h2>
     '''
 
 def cryptCNP(cnp):
@@ -156,20 +156,18 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     campuri_retrictionate=['@numeAsig','@prenAsig']
     export_angajator=[]
     angajator_simple_keys={}
-    for detaliu_angajator,valoare in xmlData.get('angajator',{}).items():
-        if "@" in detaliu_angajator:
-            angajator_simple_keys[detaliu_angajator.split('@')[1]]=valoare
     
     for detaliu_angajator,valoare in xmlData.get('angajator',{}).items():
-        if "@" in detaliu_angajator or valoare=='':
-            continue
+        if valoare=='': continue
         current_anganjator={'Id':len(export_angajator)+1,'CUI':cui,'Perioada':perioada}|angajator_simple_keys
-        if type(valoare)==dict:
-            valoare_as_list=[valoare]
-        else: valoare_as_list=valoare
-        for row in valoare_as_list:
-            for key,value in row.items():
-                current_anganjator[f"{detaliu_angajator}_{key}"]=value          
+        if "@" in detaliu_angajator:
+            angajator_simple_keys[detaliu_angajator.replace('@','')]=valoare
+            continue
+        else: 
+            valoare_as_list=[valoare] if type(valoare)==dict else valoare
+            for row in valoare_as_list:
+                for key,value in row.items():
+                    current_anganjator[f"{detaliu_angajator.replace('@','')}_{key.replace('@','')}"]=value          
         export_angajator.append(current_anganjator)
     export_asigurat_keys=set()
     export_asigurat=[]
@@ -182,13 +180,13 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
                 if detaliu_asigurat.find('@cnp')!=-1:
                     valoare = cryptCNP(valoare)
                     if valoare in lista_cnp_crypt: valoare=''
-                    current_asigurat[detaliu_asigurat.split('@')[1]]=valoare
-                else: current_asigurat[detaliu_asigurat.split('@')[1]]=valoare
-                export_asigurat_keys.add(detaliu_asigurat.split('@')[1])
+                    current_asigurat[detaliu_asigurat.replace('@','')]=valoare
+                else: current_asigurat[detaliu_asigurat.replace('@','')]=valoare
+                export_asigurat_keys.add(detaliu_asigurat.replace('@',''))
             else:
                 if type(valoare)==dict:
                     for new_key,new_value in valoare.items():
-                        if new_key.find('@')!=-1:new_key=new_key.split('@')[1]
+                        if new_key.find('@')!=-1:new_key=new_key.replace('@','')
                         current_asigurat[new_key]=new_value
                         export_asigurat_keys.add(new_key)
         if current_asigurat.get('cnpAsig')!='': export_asigurat.append(current_asigurat)
@@ -199,7 +197,7 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     
     return {'tabele':{
     "angajator":export_angajator,
-    "angajat":export_asigurat,
+    "asigurat":export_asigurat,
     }}
     
 def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
@@ -337,7 +335,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
 
     for id_spor in id_sporuri_export:
         export_sporuri_salariu.append(temp_export_sporuri_salariu.get(id_spor))
-    
+
             
     return {'tabele':{
         "AAsalariati":export_salariati,
