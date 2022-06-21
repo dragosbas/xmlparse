@@ -27,10 +27,7 @@ def upload_file():
         DISAPROVED_COR=request.form.get('corExclus','0001')
         FILE_REQUESTED=request.form.get('fileRequested','JSON')
         lista_cnp_crypt=[cryptCNP(request.form.get('cnp1', "")),request.form.get('cnp2', "")]
-        # BANNEDCNP=request.form.get('bannedCnp', []).replace("'", "").replace("[", "").replace("]", "").replace('"', "").split(",")
-        BANNEDCNP = json.loads(request.form.get('bannedCnp'))
-        print(BANNEDCNP)
-        print("-----------")
+        BANNEDCNP = json.loads(request.form.get('bannedCnp',"[]"))
         lista_cnp_crypt+=BANNEDCNP
         lista_cor_exclus=[DISAPROVED_COR]
         try:
@@ -135,7 +132,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 21 Jun 2022 : 10:30</h2>
+        <h2>Last Update : 22 Jun 2022 : 08:00</h2>
     '''
 
 def cryptCNP(cnp):
@@ -190,12 +187,19 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
                 else: current_asigurat[detaliu_asigurat.replace('@','')]=valoare
                 export_asigurat_keys.add(detaliu_asigurat.replace('@',''))
             else:
-                if type(valoare)==list: valoare=valoare[0]
-                if type(valoare)==dict:
-                    for new_key,new_value in valoare.items():
-                        if new_key.find('@')!=-1:new_key=new_key.replace('@','')
-                        current_asigurat[f"{detaliu_asigurat}_{new_key}"]=new_value
-                        export_asigurat_keys.add(f"{detaliu_asigurat}_{new_key}")
+                if type(valoare)==dict: valoare=[valoare]
+                for sublist in valoare:
+                    for new_key,new_value in sublist.items():
+                        if new_key.find('@')!=-1:new_key=f"{detaliu_asigurat}_{new_key.replace('@','')}"
+                        if new_key not in current_asigurat.keys():
+                            current_asigurat[new_key]=new_value
+                        else:
+                            try:
+                                current_asigurat[new_key]=int(current_asigurat[new_key])+int(new_value)
+                            except:
+                                current_asigurat[new_key]+=new_value
+
+                        export_asigurat_keys.add(new_key)
         if current_asigurat.get('cnpAsig')!='': export_asigurat.append(current_asigurat)
     
     for asigurat in export_asigurat:
