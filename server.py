@@ -1,6 +1,6 @@
-
 from flask import (Flask, request,jsonify,send_file)
 import os,time,xmltodict,hashlib,shutil,uuid
+from numpy import minimum
 import database_connection
 from flask_cors import CORS
 import json
@@ -190,26 +190,48 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
                 if type(valoare)==dict: valoare=[valoare]
                 for sublist in valoare:
                     for new_key,new_value in sublist.items():
-                        if new_key.find('@')!=-1:new_key=f"{detaliu_asigurat}_{new_key.replace('@','')}"
+                        if new_key.find('@')!=-1:new_key=new_key.replace('@','')
                         if new_key not in current_asigurat.keys():
-                            current_asigurat[new_key]=new_value
+                            current_asigurat[new_key]=[new_value]
                         else:
-                            try:
-                                current_asigurat[new_key]=int(current_asigurat[new_key])+int(new_value)
-                            except:
-                                current_asigurat[new_key]+=new_value
-
+                            current_asigurat[new_key]+=[new_value]
                         export_asigurat_keys.add(new_key)
         if current_asigurat.get('cnpAsig')!='': export_asigurat.append(current_asigurat)
     
+    SINGLEKEYS=['idAsig','CUI','Perioada','cnpAsig','dataAng','dataSf','A_1','A_2','A_3','A_4','A_5','A_6','A_7','A_8','C_1']
+    MINKEYS=['B1_1','B1_3','E3_1','E3_2','E3_4']
+    SUMKEYS=['B1_2','B1_4','B1_5','B1_6','B1_7','B1_8','B2_2','B2_3','B2_4','B2_5','B2_6','B2_7','B2_6i','B2_6f','B2_7i','B2_7f','B3_1 ','B3_2','B3_3','B3_4','B3_5','B3_6','B3_7','B3_8','B3_9','B3_10','B3_11','B3_12','B3_13','D_14','D_15','D_20','D_21','E3_8','E3_10','E3_16']
+    final_export_asigurat=[]
+
     for asigurat in export_asigurat:
-        for key in sorted(export_asigurat_keys):
-            if key not in asigurat.keys():
-                asigurat[key]=''
-    
+        final_asigurat={}
+        for key in SINGLEKEYS:
+            temp_value=asigurat.get(key,"")
+            final_asigurat[key]=temp_value[0] if isinstance(temp_value,list) else temp_value
+        for key in SUMKEYS:
+            final_asigurat[key]=sum(list(map(int,asigurat.get(key,[]))))
+            if final_asigurat[key]==0:final_asigurat[key]=""
+        for key in MINKEYS:
+            final_asigurat[key]=min(asigurat.get(key,["0"]))
+            if final_asigurat[key]==0:final_asigurat[key]=""
+        final_export_asigurat.append(final_asigurat)
+        # for key,value in asigurat.items():
+        #     if isinstance(value,list): 
+        #         if len(value)==1: 
+        #             asigurat[key]=value[0]
+        #             continue
+        #         try:
+        #             newlist = list(map(int,value))
+        #             sum=sum(newlist)
+        #         except:
+        #             newlist=value
+        #             sum="-------"
+        #         if key in MINKEYS: asigurat[key] = min(newlist)
+        #         else: asigurat[key]=sum
+                
     return {'tabele':{
     "angajator":export_angajator,
-    "asigurat":export_asigurat,
+    "asigurat":final_export_asigurat,
     }}
     
 def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
