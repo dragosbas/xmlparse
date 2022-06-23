@@ -200,7 +200,7 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     
     SINGLEKEYS=['idAsig','CUI','Perioada','cnpAsig','dataAng','dataSf','A_1','A_2','A_3','A_4','A_5','A_6','A_7','A_8','C_1']
     MINKEYS=['B1_1','B1_3','E3_1','E3_2','E3_4']
-    SUMKEYS=['B1_2','B1_4','B1_5','B1_6','B1_7','B1_8','B2_2','B2_3','B2_4','B2_5','B2_6','B2_7','B2_6i','B2_6f','B2_7i','B2_7f','B3_1 ','B3_2','B3_3','B3_4','B3_5','B3_6','B3_7','B3_8','B3_9','B3_10','B3_11','B3_12','B3_13','D_14','D_15','D_20','D_21','E3_8','E3_10','E3_16']
+    SUMKEYS=['B1_2','B1_4','B1_5','B1_6','B1_7','B1_8','B2_2','B2_3','B2_4','B2_5','B2_6','B2_7','B2_6i','B2_6f','B2_7i','B2_7f','B3_1','B3_2','B3_3','B3_4','B3_5','B3_6','B3_7','B3_8','B3_9','B3_10','B3_11','B3_12','B3_13','D_14','D_15','D_20','D_21','E3_8','E3_10','E3_16']
     final_export_asigurat=[]
 
     for asigurat in export_asigurat:
@@ -215,19 +215,6 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
             final_asigurat[key]=min(asigurat.get(key,["0"]))
             if final_asigurat[key]==0:final_asigurat[key]=""
         final_export_asigurat.append(final_asigurat)
-        # for key,value in asigurat.items():
-        #     if isinstance(value,list): 
-        #         if len(value)==1: 
-        #             asigurat[key]=value[0]
-        #             continue
-        #         try:
-        #             newlist = list(map(int,value))
-        #             sum=sum(newlist)
-        #         except:
-        #             newlist=value
-        #             sum="-------"
-        #         if key in MINKEYS: asigurat[key] = min(newlist)
-        #         else: asigurat[key]=sum
                 
     return {'tabele':{
     "angajator":export_angajator,
