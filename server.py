@@ -1,19 +1,17 @@
+import os,time,xmltodict,hashlib,shutil,json,io
 from flask import (Flask, request,jsonify,send_file)
-import os,time,xmltodict,hashlib,shutil,uuid
-from numpy import minimum
-import database_connection
 from flask_cors import CORS
-import json
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = 'sogard'
+app.config["UPLOAD_FOLDER"] = os.path.join(
+    os.path.dirname(__file__), "uploads")
+
 try:
     os.mkdir(os.path.join(os.path.dirname(__file__),"uploads"))
 except:
     pass
-
-app.config["UPLOAD_FOLDER"] = os.path.join(
-    os.path.dirname(__file__), "uploads")
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
@@ -91,24 +89,43 @@ def upload_file():
                 result['is_d112']=True
             except:
                 return Flask.response_class("XML parse failuare", status=401, mimetype='application/json')       
-        
+
         if result['is_rvs']:
             # try:
                 processed_database=process2(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
-                raport+=f"--Time until xml processing ends : {time.time() - start_time}"
             # except:
-            #     return Flask.response_class("Problems processing xml files", status=401, mimetype='application/json')        
+            #     return Flask.response_class("Problems processing xml files from rvs", status=401, mimetype='application/json')        
         if result['is_d112']:
+            # try:
                 processed_database=process1(xmlData,lista_cnp_crypt=lista_cnp_crypt,lista_cor_exclus=lista_cor_exclus,perioada=PERIOADA,cui=CUI,minCor=MINCOR)
-        querry_report=database_connection.insert(processed_database['tabele'])
+            # except:
+            #     return Flask.response_class("Problems processing xml files from xmls", status=401, mimetype='application/json')        
         
-        # raport+=processed_database['raport']
+        if FILE_REQUESTED not in ['SQL','XLSX']: return jsonify(processed_database.get('tabele',{}))
+        
+        generate_export_files(processed_database['tabele'])
+        return_data = io.BytesIO()
+        
         if FILE_REQUESTED=='SQL':
-            return send_file('revisalImportQuery.sql')
+            # return send_file('revisalImportQuery.sql')
+            file_path = 'output.sql'
         elif FILE_REQUESTED=='XLSX':
-            return send_file('revisalImport.xlsx')
-        # return jsonify({"success": "File uploaded successfully", "time": time.time() - start_time,"error": "None",'raport':raport,'querry':raport,'tables':processed_database.get('tabele',{})})
-        return jsonify(processed_database.get('tabele',{}))
+            file_path = 'output.xlsx'
+            # return send_file('revisalImport.xlsx')
+
+        with open(file_path, 'rb') as fo:
+            return_data.write(fo.read())
+        return_data.seek(0) # (after writing, cursor will be at last byte, so move it to start)
+
+        os.remove('output.xlsx')
+        os.remove('output.sql')
+
+        return send_file(return_data,
+                        mimetype=f'application/{file_path.split(".")[1]}',
+                        as_attachment=True,
+                        download_name=f'output.{file_path.split(".")[1]}')
+        
+
     return '''
         <!doctype html>
         <title>Upload RVS File</title>
@@ -132,8 +149,48 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 22 Jun 2022 : 08:00</h2>
+        <h2>Last Update : 25 Jun 2022 : 13:00</h2>
     '''
+
+def generate_export_files(import_data):
+    querry = ""
+    for table_name, table_data in import_data.items():
+        querry += f"\nDROP TABLE IF EXISTS {table_name} ;\nCREATE TABLE {table_name} ("
+        for column_name, column_type in table_data[0].items():
+            querry += f"{column_name} VARCHAR(250),"
+        querry = querry[:-1]+");"
+        for row in table_data:
+            row_columns=""
+            row_values=""
+            for column_name, column_value in row.items():
+                row_columns += f"{column_name},"
+                row_values += f"'{column_value}',"  
+            querry+= f"\nINSERT INTO {table_name} ({row_columns[:-1]}) VALUES({row_values[:-1]});"
+
+    with open("output.sql", "w",encoding="utf-8") as text_file:
+        print(f"{querry}", file=text_file)
+    
+    with pd.ExcelWriter(f'output.xlsx') as writer:
+        for name,data in import_data.items():
+            pd.DataFrame(data).to_excel(writer,sheet_name=name)        
+
+    # try:
+    #     server = 'aibest.database.windows.net'
+    #     database = 'aibest'
+    #     username = 'robert'
+    #     password = '{Dragos123}'
+    #     driver = '{ODBC Driver 17 for SQL Server}'
+    #     connection_string = 'DRIVER='+driver+';SERVER=tcp:'+server + \
+    #         ';PORT=1433;DATABASE='+database+';UID='+username+';PWD=' + password
+
+    #     with pymssql.connect(server=server, user=username, password='Dragos123', database=database) as conn:
+    #         with conn.cursor() as cursor:
+    #             print(f'Sql query execution starting in : {time.time()-start_time}')
+    #             cursor.execute(querry)
+    #             print(f'Sql query execution finished in : {time.time()-start_time}')
+    # except:
+    #     querry+="-- insertul nu a mers ! "
+    return querry
 
 def cryptCNP(cnp):
     return hashlib.sha256(cnp.encode()).hexdigest()
@@ -176,8 +233,6 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     for asigurat in asigurati:
         current_asigurat={'Id':len(export_asigurat)+1,'CUI':cui,'Perioada':perioada}
         for detaliu_asigurat,valoare in asigurat.items():
-            if valoare=='2911009100165': 
-                print('aici')
             if detaliu_asigurat in campuri_retrictionate: continue
             if "@" in detaliu_asigurat:
                 if detaliu_asigurat.find('@cnp')!=-1:
@@ -209,11 +264,12 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
             temp_value=asigurat.get(key,"")
             final_asigurat[key]=temp_value[0] if isinstance(temp_value,list) else temp_value
         for key in SUMKEYS:
-            final_asigurat[key]=sum(list(map(int,asigurat.get(key,[]))))
-            if final_asigurat[key]==0:final_asigurat[key]=""
+            lista=list(map(int,asigurat.get(key,[])))
+            total = '' if len(lista)==0 else f"{sum(lista)}"
+            final_asigurat[key]=total
         for key in MINKEYS:
-            final_asigurat[key]=min(asigurat.get(key,["0"]))
-            if final_asigurat[key]==0:final_asigurat[key]=""
+            minimum = "" if asigurat.get(key,-1)==-1 else min(asigurat.get(key,["0"]))
+            final_asigurat[key]=f'{minimum}'
         final_export_asigurat.append(final_asigurat)
                 
     return {'tabele':{
