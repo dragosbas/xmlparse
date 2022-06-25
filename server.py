@@ -83,6 +83,13 @@ def upload_file():
                     CUI=file_as_xml.get('declaratieUnica',{}).get('angajator',{}).get('@cif','0001')
                     if CUI!=APPROVED_CUI:
                         return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
+                    LUNA_DIN_FISIER = file_as_xml.get("declaratieUnica",{}).get("@luna_r","")
+                    AN_DIN_FISIER=file_as_xml.get("declaratieUnica",{}).get("@an_r","")
+                    PERIOADA_DIN_FISIER=f'{LUNA_DIN_FISIER}-{AN_DIN_FISIER}'
+                    print(PERIOADA[-7:])
+                    if PERIOADA_DIN_FISIER!=PERIOADA[-7:]:
+                        return Flask.response_class(f"Perioada nu se potriveste. perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}", status=401, mimetype='application/json')
+                    
                     xmlData=file_as_xml.get('declaratieUnica',{})
                     currentfile.close()
                 os.remove(os.path.join(upload_folder, uploaded_file.filename))
@@ -141,7 +148,7 @@ def upload_file():
             <label for="companyCui">CUI companie la care utilizatorul are acces:   </label><br>
             <input type=text name="companyCui" value='27878713'><br>
             <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
-            <input type=text name="reportDate" value='2022-01-01'><br>
+            <input type=text name="reportDate" value='01-03-2022'><br>
             <label for="minCor">Numar minim de CORuri pentru care se face uploadarea !   </label><br>
             <input type=text name="minCor" value='1' ><br><br>
             <input type="radio" name="fileRequested" id="option1" value="SQL" checked>Generate Report as SQL</input><br>
