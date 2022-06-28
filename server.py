@@ -90,8 +90,10 @@ def upload_file():
                     LUNA_DIN_FISIER = file_as_xml.get("declaratieUnica",{}).get("@luna_r","")
                     AN_DIN_FISIER=file_as_xml.get("declaratieUnica",{}).get("@an_r","")
                     PERIOADA_DIN_FISIER=f'{LUNA_DIN_FISIER}-{AN_DIN_FISIER}'
+                    date_formater={'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}
                     print(PERIOADA[-7:])
-                    if PERIOADA_DIN_FISIER!=PERIOADA[-7:]:
+                    print(PERIOADA[3:6])
+                    if AN_DIN_FISIER!=PERIOADA[-4:] or LUNA_DIN_FISIER!=date_formater.get(PERIOADA[3:6],""):
                         return Flask.response_class(f"Perioada nu se potriveste. perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}", status=401, mimetype='application/json')
                     
                     xmlData=file_as_xml.get('declaratieUnica',{})
