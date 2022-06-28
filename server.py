@@ -21,7 +21,7 @@ def upload_file():
         start_time = time.time()
         upload_folder = app.config['UPLOAD_FOLDER']
         APPROVED_CUI=request.form.get('companyCui','')
-        PERIOADA=request.form.get('reportDate','2022-01-01')
+        PERIOADA=request.form.get('reportDate','2000-01-01')
         DISAPROVED_COR=request.form.get('corExclus','0001')
         FILE_REQUESTED=request.form.get('fileRequested','JSON')
         lista_cnp_crypt=[cryptCNP(request.form.get('cnp1', "")),request.form.get('cnp2', "")]
@@ -68,6 +68,8 @@ def upload_file():
                     with open(os.path.join(upload_folder, filename), 'rt', encoding="utf8") as currentfile:
                         file_as_xml = xmltodict.parse(currentfile.read())
                         CUI=file_as_xml.get('XmlReport',{}).get('Header',{}).get('Angajator',{}).get('Detalii',{}).get('Cui','0001')
+                        if CUI in ['0001','']:
+                            return Flask.response_class("Structura fisierului nu este recunoscuta, verificati fisierul sursa", status=401, mimetype='application/json')
                         if CUI!=APPROVED_CUI:
                             return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
                         xmlData+=file_as_xml.get('XmlReport',{}).get('Salariati',{}).get('Salariat',[])
@@ -81,6 +83,8 @@ def upload_file():
                 with open(os.path.join(upload_folder, uploaded_file.filename), 'rt', encoding="utf8") as currentfile:
                     file_as_xml = xmltodict.parse(currentfile.read(),xml_attribs=True)
                     CUI=file_as_xml.get('declaratieUnica',{}).get('angajator',{}).get('@cif','0001')
+                    if CUI=='0001':
+                        return Flask.response_class("Structura fisierului nu este recunoscuta, verificati fisierul sursa", status=401, mimetype='application/json')
                     if CUI!=APPROVED_CUI:
                         return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
                     LUNA_DIN_FISIER = file_as_xml.get("declaratieUnica",{}).get("@luna_r","")
