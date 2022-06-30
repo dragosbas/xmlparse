@@ -289,7 +289,13 @@ def process1(xmlData={},lista_cnp_crypt=[],lista_cor_exclus=[],perioada='2000-01
     "angajator":export_angajator,
     "asigurat":final_export_asigurat,
     }}
-    
+
+def format_an_nastere(an_as_string=""):
+    if an_as_string.isdigit():
+        an = int(an_as_string)
+        return 2000+an if an<25 else 1900+an
+    return 1900
+
 def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
     temp_export_salariati={} #de pastrat
     temp_export_contracte={} #de pastrat
@@ -303,7 +309,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
         salariat_export['LocalitateCodSiruta']=salariat.get('Localitate',{}).get('CodSiruta',"")
         salariat_export['NationalitateNume']=salariat.get('Nationalitate',{}).get('Nume',"")
         salariat_export['LunaNastere']=salariat.get('Cnp')[3:5]
-        salariat_export['AnNastere']=salariat.get('Cnp')[1:3]
+        salariat_export['AnNastere']=format_an_nastere(salariat.get('Cnp')[1:3])
         salariat_export['Sex']="M" if salariat.get('Cnp')[0] in ['1','5'] else 'F'
         salariat_export['Cnp']=cryptCNP(salariat.get('Cnp'))
         salariat_export['Cui']=cui
@@ -334,7 +340,7 @@ def process2(xmlData,lista_cnp_crypt,lista_cor_exclus,perioada,cui,minCor=1):
             contract_export['ExceptieDataSfarsit']=contract.get('ExceptieDataSfarsit',"")
             contract_export['NumarContract']=contract.get('NumarContract',"")
             contract_export['Radiat']=contract.get('Radiat',"")
-            contract_export['Salariu']=contract.get('ContractNume',"")
+            contract_export['Salariu']=contract.get('Salariu',"")
             contract_export['StareCurenta']=contract.get('StareCurenta',"").get('@i:type',"")
             contract_export['StareCurentaDataIncetareDetasare']=contract.get('StareCurenta',{}).get('DataIncetareDetasare',"")
             contract_export['StareCurentaDataIncetareSuspendare']=contract.get('StareCurenta',{}).get('DataIncetareSuspendare',"")
