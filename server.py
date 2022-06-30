@@ -71,13 +71,13 @@ def upload_file():
                         if CUI in ['0001','']:
                             return Flask.response_class("Structura fisierului nu este recunoscuta, verificati fisierul sursa", status=401, mimetype='application/json')
                         if CUI!=APPROVED_CUI:
-                            return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
+                            return Flask.response_class("CUI-ul din fisier nu corespunde companiei pentru care s-a propus incarcarea", status=401, mimetype='application/json')
                         xmlData+=file_as_xml.get('XmlReport',{}).get('Salariati',{}).get('Salariat',[])
                         currentfile.close()
                     os.remove(os.path.join(upload_folder, filename))
                 raport+=f"--Time until xml merge end : {time.time() - start_time}"
             except:
-                return Flask.response_class("XML merge failuare", status=401, mimetype='application/json')
+                return Flask.response_class("Eroare la concatenarea fisierelor din rvs", status=401, mimetype='application/json')
         else:
             try:
                 with open(os.path.join(upload_folder, uploaded_file.filename), 'rt', encoding="utf8") as currentfile:
@@ -86,15 +86,16 @@ def upload_file():
                     if CUI=='0001':
                         return Flask.response_class("Structura fisierului nu este recunoscuta, verificati fisierul sursa", status=401, mimetype='application/json')
                     if CUI!=APPROVED_CUI:
-                        return Flask.response_class("CUI does not match", status=401, mimetype='application/json')
+                        return Flask.response_class("CUI-ul din fisier nu corespunde companiei pentru care s-a propus incarcarea", status=401, mimetype='application/json')
                     LUNA_DIN_FISIER = file_as_xml.get("declaratieUnica",{}).get("@luna_r","")
                     AN_DIN_FISIER=file_as_xml.get("declaratieUnica",{}).get("@an_r","")
                     PERIOADA_DIN_FISIER=f'{LUNA_DIN_FISIER}-{AN_DIN_FISIER}'
                     date_formater={'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12}
                     #rezolva castare ca int
-                    
+                    if not LUNA_DIN_FISIER.isdigit():
+                        return Flask.response_class(f"Perioada desemnata nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}", status=401, mimetype='application/json')
                     if AN_DIN_FISIER!=PERIOADA[-4:] or int(LUNA_DIN_FISIER)!=date_formater.get(PERIOADA[3:6],""):
-                        return Flask.response_class(f"Perioada nu se potriveste. perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}", status=401, mimetype='application/json')
+                        return Flask.response_class(f"Perioada nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}", status=401, mimetype='application/json')
                     
                     xmlData=file_as_xml.get('declaratieUnica',{})
                     currentfile.close()
@@ -162,7 +163,7 @@ def upload_file():
             <input type="radio" name="fileRequested" id="option3" value="JSON">Generate Report as JSON</input><br>
             <input type=submit value=Upload>
         </form>
-        <h2>Last Update : 25 Jun 2022 : 13:00</h2>
+        <h2>Last Update : 30 Jun 2022 : 13:00</h2>
     '''
 
 def generate_export_files(import_data):
