@@ -207,7 +207,7 @@ def generate_export_files(import_data):
     return querry
 
 def cryptCNP(cnp):
-    word=f"{cnp}aib"
+    word=f"{cnp}Aib_"
     return hashlib.sha256(cnp.encode()).hexdigest()
     
 def add_id(list):
