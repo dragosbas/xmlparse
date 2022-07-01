@@ -112,6 +112,8 @@ def upload_file():
                             f"Perioada desemnata nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}",
                             status=401, mimetype='application/json')
                     if AN_DIN_FISIER != PERIOADA[:4] or int(LUNA_DIN_FISIER) != date_formater.get(PERIOADA[5:7], ""):
+                        print(f"Perioada nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[:4]}-{PERIOADA[5:7]}",
+                            )
                         return Flask.response_class(
                             f"Perioada nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[:4]}-{PERIOADA[5:7]}",
                             status=401, mimetype='application/json')
