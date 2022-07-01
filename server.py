@@ -104,16 +104,8 @@ def upload_file():
                     LUNA_DIN_FISIER = file_as_xml.get("declaratieUnica", {}).get("@luna_r", "")
                     AN_DIN_FISIER = file_as_xml.get("declaratieUnica", {}).get("@an_r", "")
                     PERIOADA_DIN_FISIER = f'{LUNA_DIN_FISIER}-{AN_DIN_FISIER}'
-                    date_formater = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8,
-                                     'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
-                    # rezolva castare ca int
-                    if not LUNA_DIN_FISIER.isdigit():
-                        return Flask.response_class(
-                            f"Perioada desemnata nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[-7:]}",
-                            status=401, mimetype='application/json')
-                    if AN_DIN_FISIER != PERIOADA[:4] or int(LUNA_DIN_FISIER) != date_formater.get(PERIOADA[5:7], ""):
-                        print(f"Perioada nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[:4]}-{PERIOADA[5:7]}",
-                            )
+
+                    if AN_DIN_FISIER != PERIOADA[:4] or LUNA_DIN_FISIER != PERIOADA[5:7]:
                         return Flask.response_class(
                             f"Perioada nu se potriveste. Perioada din fisier este {PERIOADA_DIN_FISIER}, perioada ceruta este {PERIOADA[:4]}-{PERIOADA[5:7]}",
                             status=401, mimetype='application/json')
