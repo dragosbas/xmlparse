@@ -178,7 +178,7 @@ htmlTemplate = '''
             <label for="companyCui">CUI companie la care utilizatorul are acces:   </label><br>
             <input type=text name="companyCui" value='27878713'><br>
             <label for="reportDate">Data pentru care se face raportul (se adauga la salariati pe coloana perioada):</label><br>
-            <input type=text name="reportDate" value='01-03-2022'><br>
+            <input type=text name="reportDate" value='2022-01-01'><br>
             <label for="minCor">Numar minim de CORuri pentru care se face uploadarea !   </label><br>
             <input type=text name="minCor" value='1' ><br><br>
             <input type="radio" name="fileRequested" id="option1" value="SQL" checked>Generate Report as SQL</input><br>
