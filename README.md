@@ -7,11 +7,10 @@ Note: All individual private informations are anonimized
 
 
 
-## Authors
-
-- [@dragosbas](https://github.com/dragosbas)
+## Demo
 
 
+https://xmltodict.herokuapp.com/
 ## Tech Stack
 
 **Client:** Html
@@ -56,6 +55,11 @@ git clone https://github.com/R0bert196/CodecoolShop
 ```
 
 3. Compile and run !
+
+
+## Authors
+
+- [@dragosbas](https://github.com/dragosbas)
 
 
 ## License
